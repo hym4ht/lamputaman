@@ -9,6 +9,12 @@ class DeviceControl extends Model
 {
     public const CREATED_AT = null;
 
+    public const LAMP_DEVICES = [
+        'lampu1' => 'Lampu 1',
+        'lampu2' => 'Lampu 2',
+        'lampu3' => 'Lampu 3',
+    ];
+
     public const DEVICES = [
         'lampu1' => 'Lampu 1',
         'lampu2' => 'Lampu 2',
@@ -66,6 +72,12 @@ class DeviceControl extends Model
     public static function snapshot(?CarbonInterface $at = null): array
     {
         $snapshot = self::manualSnapshot();
+
+        foreach (LampSchedule::scheduledSnapshot($at) as $deviceName => $status) {
+            if ($status === 1) {
+                $snapshot[$deviceName] = 1;
+            }
+        }
 
         if (PumpSchedule::activeAt($at)) {
             $snapshot['pompa'] = 1;

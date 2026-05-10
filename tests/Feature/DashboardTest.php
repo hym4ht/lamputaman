@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\DeviceControl;
+use App\Models\LampSchedule;
 use App\Models\PumpSchedule;
 use App\Models\SensorData;
 use App\Models\User;
@@ -52,7 +53,13 @@ class DashboardTest extends TestCase
         $this->actingAs($user)
             ->get('/dashboard/jadwal')
             ->assertOk()
-            ->assertSee('Jadwal Otomatis')
+            ->assertSee('Jadwal Lampu')
+            ->assertSee('Jam Nyala')
+            ->assertSee('Jam Mati')
+            ->assertDontSee('lampScheduleName')
+            ->assertDontSee('lampTarget')
+            ->assertDontSee('lampEveryDayToggle')
+            ->assertSee('Jadwal Pompa')
             ->assertSee('Setiap hari');
     }
 
@@ -69,6 +76,25 @@ class DashboardTest extends TestCase
             'device_name' => 'lampu1',
             'status' => true,
         ]);
+    }
+
+    public function test_authenticated_admin_can_update_all_lamp_controls(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patchJson('/dashboard/control-lamps', ['status' => 1])
+            ->assertOk()
+            ->assertJsonPath('controls.lampu1', 1)
+            ->assertJsonPath('controls.lampu2', 1)
+            ->assertJsonPath('controls.lampu3', 1);
+
+        foreach (array_keys(DeviceControl::LAMP_DEVICES) as $deviceName) {
+            $this->assertDatabaseHas('device_controls', [
+                'device_name' => $deviceName,
+                'status' => true,
+            ]);
+        }
     }
 
     public function test_dashboard_data_returns_latest_sensor_and_controls(): void
@@ -158,6 +184,60 @@ class DashboardTest extends TestCase
             'start_time' => '16:30',
             'duration_minutes' => 15,
             'is_enabled' => true,
+        ]);
+    }
+
+    public function test_authenticated_admin_can_create_lamp_schedule(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/dashboard/lamp-schedules', [
+                'start_time' => '18:00',
+                'end_time' => '06:00',
+            ])
+            ->assertRedirect('/dashboard/jadwal');
+
+        $this->assertDatabaseHas('lamp_schedules', [
+            'name' => 'Jadwal Lampu',
+            'target' => LampSchedule::TARGET_ALL,
+            'start_time' => '18:00',
+            'end_time' => '06:00',
+            'duration_minutes' => 720,
+            'is_enabled' => true,
+        ]);
+    }
+
+    public function test_authenticated_admin_can_toggle_and_delete_lamp_schedule(): void
+    {
+        $user = User::factory()->create();
+        $schedule = LampSchedule::query()->create([
+            'name' => 'Lampu tes',
+            'target' => 'lampu1',
+            'days' => [1, 2, 3],
+            'start_time' => '18:00',
+            'end_time' => '22:00',
+            'duration_minutes' => 60,
+            'is_enabled' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->patch("/dashboard/lamp-schedules/{$schedule->id}", [
+                'is_enabled' => 0,
+            ])
+            ->assertRedirect('/dashboard/jadwal');
+
+        $this->assertDatabaseHas('lamp_schedules', [
+            'id' => $schedule->id,
+            'is_enabled' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->delete("/dashboard/lamp-schedules/{$schedule->id}")
+            ->assertRedirect('/dashboard/jadwal');
+
+        $this->assertDatabaseMissing('lamp_schedules', [
+            'id' => $schedule->id,
         ]);
     }
 

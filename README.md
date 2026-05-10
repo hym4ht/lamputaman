@@ -8,6 +8,8 @@ Project Laravel untuk monitoring suhu, kelembaban, dan kontrol relay ESP8266/Nod
 - Dashboard realtime polling setiap 5 detik.
 - Grafik suhu dan kelembaban 24 jam terakhir.
 - Toggle AJAX untuk `lampu1`, `lampu2`, `lampu3`, dan `pompa`.
+- Tombol cepat untuk menyalakan atau mematikan semua lampu sekaligus.
+- Jadwal otomatis lampu untuk semua lampu atau lampu tertentu dengan jam nyala dan jam mati.
 - Jadwal otomatis pompa seperti alarm: pilih hari, jam mulai, durasi, aktif/nonaktif, dan hapus jadwal.
 - API ESP8266:
   - `POST /api/iot/sensor`
@@ -83,7 +85,7 @@ Response kontrol:
 }
 ```
 
-Nilai `pompa` otomatis menjadi `1` jika tombol manual pompa ON atau ada jadwal pompa yang sedang aktif. Jadi ESP8266 tetap cukup polling endpoint `GET /api/iot/control`; tidak perlu cron khusus untuk menyalakan pompa.
+Nilai `lampu1`, `lampu2`, dan `lampu3` otomatis menjadi `1` jika tombol manual ON atau ada jadwal lampu yang sedang aktif. Nilai `pompa` otomatis menjadi `1` jika tombol manual pompa ON atau ada jadwal pompa yang sedang aktif. Jadwal tidak menimpa status manual di database; status akhir dihitung saat ESP8266 polling `GET /api/iot/control`, jadi tidak ada proses yang rebutan mengubah tombol manual.
 
 Jika `IOT_API_TOKEN` dikosongkan, API IoT dapat diakses tanpa token. Untuk VPS publik, sebaiknya isi token dan kirim header `X-IOT-TOKEN` dari ESP8266.
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\DeviceControl;
+use App\Models\LampSchedule;
 use App\Models\PumpSchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,6 +69,35 @@ class IotApiTest extends TestCase
         $this->getJson('/api/iot/control')
             ->assertOk()
             ->assertJsonPath('pompa', 0);
+    }
+
+    public function test_control_endpoint_turns_lamps_on_when_lamp_schedule_is_active(): void
+    {
+        LampSchedule::query()->create([
+            'name' => 'Lampu malam',
+            'target' => LampSchedule::TARGET_ALL,
+            'days' => [1],
+            'start_time' => '18:00',
+            'end_time' => '20:00',
+            'duration_minutes' => 120,
+            'is_enabled' => true,
+        ]);
+
+        $this->travelTo(CarbonImmutable::parse('2026-05-11 19:00:00', config('app.timezone')));
+
+        $this->getJson('/api/iot/control')
+            ->assertOk()
+            ->assertJsonPath('lampu1', 1)
+            ->assertJsonPath('lampu2', 1)
+            ->assertJsonPath('lampu3', 1);
+
+        $this->travelTo(CarbonImmutable::parse('2026-05-11 20:01:00', config('app.timezone')));
+
+        $this->getJson('/api/iot/control')
+            ->assertOk()
+            ->assertJsonPath('lampu1', 0)
+            ->assertJsonPath('lampu2', 0)
+            ->assertJsonPath('lampu3', 0);
     }
 
     public function test_pump_schedule_can_cross_midnight(): void

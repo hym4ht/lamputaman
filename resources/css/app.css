@@ -3,16 +3,16 @@
 :root {
     --sidebar-width: 248px;
     --bg: #f4f7f9;
-    --bg-soft: #eef4f2;
+    --bg-soft: #eff6ff;
     --surface: #ffffff;
     --surface-muted: #f7fafb;
-    --text: #111c18;
-    --muted: #62706b;
-    --line: #dde7e3;
-    --line-strong: #c7d5d0;
-    --primary: #0d8b6f;
-    --primary-dark: #075f51;
-    --primary-soft: #e4f7f1;
+    --text: #111827;
+    --muted: #64748b;
+    --line: #dbe3ee;
+    --line-strong: #bfdbfe;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-soft: #dbeafe;
     --success: #14a36d;
     --warning: #e88b23;
     --info: #3276d2;
@@ -51,8 +51,14 @@ textarea {
 
 .auth-page {
     background:
-        linear-gradient(90deg, rgba(244, 247, 249, 0.98) 0%, rgba(244, 247, 249, 0.9) 50%, rgba(244, 247, 249, 0.2) 100%),
-        url("https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=1800&q=80") center/cover;
+        linear-gradient(90deg, rgba(239, 246, 255, 0.96) 0%, rgba(239, 246, 255, 0.72) 48%, rgba(37, 99, 235, 0.18) 100%),
+        linear-gradient(135deg, #eff6ff 0%, #dbeafe 48%, #bfdbfe 100%);
+}
+
+.auth-page.has-auth-bg {
+    background:
+        linear-gradient(90deg, rgba(239, 246, 255, 0.84) 0%, rgba(239, 246, 255, 0.52) 48%, rgba(37, 99, 235, 0.08) 100%),
+        url("/bg.png") center/cover;
 }
 
 .auth-shell {
@@ -94,10 +100,10 @@ textarea {
 .login-card {
     width: 100%;
     padding: clamp(22px, 4vw, 34px);
-    border: 1px solid rgba(199, 213, 208, 0.88);
+    border: 1px solid rgba(191, 219, 254, 0.88);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 251, 0.9));
+        linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 251, 255, 0.92));
     box-shadow: var(--shadow);
     backdrop-filter: blur(12px);
 }
@@ -134,7 +140,7 @@ textarea {
     --bs-btn-hover-border-color: var(--primary-dark);
     --bs-btn-active-bg: var(--primary-dark);
     --bs-btn-active-border-color: var(--primary-dark);
-    box-shadow: 0 10px 20px rgba(13, 139, 111, 0.18);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
 }
 
 .btn-outline-secondary {
@@ -214,13 +220,13 @@ textarea {
 
 .form-control:focus,
 .form-check-input:focus {
-    border-color: rgba(13, 139, 111, 0.58);
-    box-shadow: 0 0 0 0.2rem rgba(13, 139, 111, 0.13);
+    border-color: rgba(37, 99, 235, 0.58);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.13);
 }
 
 .form-check-input:checked {
-    border-color: var(--success);
-    background-color: var(--success);
+    border-color: var(--primary);
+    background-color: var(--primary);
 }
 
 .dashboard-page {
@@ -388,8 +394,7 @@ textarea {
     position: fixed;
     inset: 0;
     z-index: 1040;
-    background: rgba(17, 28, 24, 0.34);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4);
 }
 
 .sidebar-footer {
@@ -860,8 +865,14 @@ textarea {
 @media (max-width: 920px) {
     .auth-page {
         background:
-            linear-gradient(180deg, rgba(244, 247, 249, 0.98), rgba(244, 247, 249, 0.93)),
-            url("https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=1400&q=80") center/cover;
+            linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(219, 234, 254, 0.78)),
+            linear-gradient(135deg, #eff6ff 0%, #dbeafe 52%, #bfdbfe 100%);
+    }
+
+    .auth-page.has-auth-bg {
+        background:
+            linear-gradient(180deg, rgba(239, 246, 255, 0.86), rgba(239, 246, 255, 0.58)),
+            url("/bg.png") center/cover;
     }
 
     .auth-panel,

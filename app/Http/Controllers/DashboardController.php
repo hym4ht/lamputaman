@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DeviceControl;
+use App\Models\LampSchedule;
 use App\Models\PumpSchedule;
 use App\Models\SensorData;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +15,9 @@ use Illuminate\View\View;
 class DashboardController extends Controller
 {
     private const DEFAULT_SENSOR_RANGE = '25m';
+
     private const SENSOR_CHART_MAX_POINTS = 80;
+
     private const SENSOR_RANGES = [
         '1m' => ['label' => '1 Menit', 'minutes' => 1],
         '5m' => ['label' => '5 Menit', 'minutes' => 5],
@@ -36,10 +39,14 @@ class DashboardController extends Controller
             'controls' => DeviceControl::snapshot(),
             'manualControls' => DeviceControl::manualSnapshot(),
             'devices' => DeviceControl::DEVICES,
+            'lampDevices' => DeviceControl::LAMP_DEVICES,
             'dayLabels' => PumpSchedule::DAY_LABELS,
+            'lampTargets' => LampSchedule::TARGET_LABELS,
             'latest' => SensorData::query()->latest('created_at')->first(),
             'pumpSchedules' => PumpSchedule::query()->orderBy('start_time')->get(),
             'pumpStatus' => $this->pumpStatus(),
+            'lampSchedules' => LampSchedule::query()->orderBy('start_time')->get(),
+            'lampStatus' => LampSchedule::status(),
         ]);
     }
 
@@ -57,6 +64,7 @@ class DashboardController extends Controller
             'controls' => DeviceControl::snapshot(),
             'manual_controls' => DeviceControl::manualSnapshot(),
             'pump' => $this->pumpStatus(),
+            'lamp' => LampSchedule::status(),
             'updated_at' => now()->toIso8601String(),
         ]);
     }
@@ -84,6 +92,31 @@ class DashboardController extends Controller
             'controls' => DeviceControl::snapshot(),
             'manual_controls' => DeviceControl::manualSnapshot(),
             'pump' => $this->pumpStatus(),
+            'lamp' => LampSchedule::status(),
+        ]);
+    }
+
+    public function updateLampControls(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'boolean'],
+        ]);
+
+        foreach (array_keys(DeviceControl::LAMP_DEVICES) as $device) {
+            $control = DeviceControl::query()->firstOrCreate([
+                'device_name' => $device,
+            ]);
+
+            $control->forceFill([
+                'status' => (bool) $validated['status'],
+            ])->save();
+        }
+
+        return response()->json([
+            'controls' => DeviceControl::snapshot(),
+            'manual_controls' => DeviceControl::manualSnapshot(),
+            'pump' => $this->pumpStatus(),
+            'lamp' => LampSchedule::status(),
         ]);
     }
 
@@ -111,6 +144,28 @@ class DashboardController extends Controller
             ->with('status', 'Jadwal pompa berhasil ditambahkan.');
     }
 
+    public function storeLampSchedule(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'different:start_time'],
+        ]);
+
+        LampSchedule::query()->create([
+            'name' => 'Jadwal Lampu',
+            'target' => LampSchedule::TARGET_ALL,
+            'days' => array_keys(PumpSchedule::DAY_LABELS),
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
+            'duration_minutes' => $this->minutesBetweenClockTimes($validated['start_time'], $validated['end_time']),
+            'is_enabled' => true,
+        ]);
+
+        return redirect()
+            ->route('dashboard.jadwal')
+            ->with('status', 'Jadwal lampu berhasil ditambahkan.');
+    }
+
     public function togglePumpSchedule(Request $request, PumpSchedule $pumpSchedule): RedirectResponse
     {
         $validated = $request->validate([
@@ -126,6 +181,21 @@ class DashboardController extends Controller
             ->with('status', 'Status jadwal pompa diperbarui.');
     }
 
+    public function toggleLampSchedule(Request $request, LampSchedule $lampSchedule): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_enabled' => ['required', 'boolean'],
+        ]);
+
+        $lampSchedule->forceFill([
+            'is_enabled' => (bool) $validated['is_enabled'],
+        ])->save();
+
+        return redirect()
+            ->route('dashboard.jadwal')
+            ->with('status', 'Status jadwal lampu diperbarui.');
+    }
+
     public function destroyPumpSchedule(PumpSchedule $pumpSchedule): RedirectResponse
     {
         $pumpSchedule->delete();
@@ -133,6 +203,15 @@ class DashboardController extends Controller
         return redirect()
             ->route('dashboard.jadwal')
             ->with('status', 'Jadwal pompa dihapus.');
+    }
+
+    public function destroyLampSchedule(LampSchedule $lampSchedule): RedirectResponse
+    {
+        $lampSchedule->delete();
+
+        return redirect()
+            ->route('dashboard.jadwal')
+            ->with('status', 'Jadwal lampu dihapus.');
     }
 
     /**
@@ -241,5 +320,20 @@ class DashboardController extends Controller
             ->sort()
             ->values()
             ->all();
+    }
+
+    private function minutesBetweenClockTimes(string $startTime, string $endTime): int
+    {
+        [$startHour, $startMinute] = array_map('intval', array_pad(explode(':', $startTime), 2, 0));
+        [$endHour, $endMinute] = array_map('intval', array_pad(explode(':', $endTime), 2, 0));
+
+        $start = ($startHour * 60) + $startMinute;
+        $end = ($endHour * 60) + $endMinute;
+
+        if ($end <= $start) {
+            $end += 1440;
+        }
+
+        return $end - $start;
     }
 }

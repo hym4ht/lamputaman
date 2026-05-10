@@ -4,6 +4,7 @@ set -u
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
+DEFAULT_IOT_API_TOKEN="c131e10fe1608540ee2b446a4bf9529846c883893dfdf261e288cf6124f26dfc"
 
 usage() {
     cat <<'EOF'
@@ -13,17 +14,21 @@ Usage:
   ./scripts/dummy-sensor.sh
   ./scripts/dummy-sensor.sh --once
   ./scripts/dummy-sensor.sh --interval 2 --runs 30
+  IOT_API_TOKEN=token ./scripts/dummy-sensor.sh --interval 2
   API_URL=https://domain-kamu.com/api/iot/sensor IOT_API_TOKEN=token ./scripts/dummy-sensor.sh
 
 Options:
   --once             Kirim 1 data lalu berhenti.
   --runs N           Kirim N data lalu berhenti. Default 0 = jalan terus.
   --interval SECOND  Jeda antar kirim data. Default 5.
-  --url URL          Endpoint sensor, contoh http://127.0.0.1:8000/api/iot/sensor.
+  --url URL          Endpoint sensor, default http://43.133.155.101:8099/api/iot/sensor.
   -h, --help         Tampilkan bantuan.
 
 Env override:
   API_URL, IOT_API_TOKEN, INTERVAL, RUNS, TEMP_MIN, TEMP_MAX, HUM_MIN, HUM_MAX
+
+Catatan:
+  Script ini sudah punya token VPS hardcode sebagai fallback.
 EOF
 }
 
@@ -91,11 +96,15 @@ resolve_api_url() {
     fi
 
     local app_url
+    local default_vps_url
     local candidate
     local health_url
 
+    default_vps_url="http://43.133.155.101:8099"
     app_url="$(trim_trailing_slash "$(read_env_value APP_URL "http://127.0.0.1:8000")")"
     BASE_CANDIDATES=()
+
+    append_unique_candidate "$default_vps_url"
 
     if is_bare_local_url "$app_url"; then
         append_unique_candidate "http://127.0.0.1:8002"
@@ -123,7 +132,7 @@ resolve_api_url() {
     done
 
     if is_bare_local_url "$app_url"; then
-        printf '%s/api/iot/sensor' "http://127.0.0.1:8000"
+        printf '%s/api/iot/sensor' "$default_vps_url"
         return
     fi
 
@@ -216,10 +225,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 IOT_TOKEN="${IOT_API_TOKEN:-$(read_env_value IOT_API_TOKEN "")}"
+
+if [[ -z "$IOT_TOKEN" ]]; then
+    IOT_TOKEN="$DEFAULT_IOT_API_TOKEN"
+fi
+
 RESOLVED_API_URL="$(resolve_api_url)"
 
 echo "Dummy sensor realtime aktif."
 echo "Endpoint : $RESOLVED_API_URL"
+echo "Token    : $([[ -n "$IOT_TOKEN" ]] && echo "aktif" || echo "kosong")"
 echo "Interval : ${INTERVAL}s"
 echo "Runs     : $([[ "$RUNS" == "0" ]] && echo "infinite" || echo "$RUNS")"
 echo "Range    : suhu ${TEMP_MIN}-${TEMP_MAX} C, kelembaban ${HUM_MIN}-${HUM_MAX}%"

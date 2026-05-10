@@ -10,10 +10,10 @@ const char* password = "PINGINSURGAibadah";
 // --- KONFIGURASI API LARAVEL ---
 // Isi dengan alamat web Laravel yang bisa diakses NodeMCU.
 // Untuk server lokal, gunakan IP laptop/PC, bukan 127.0.0.1 atau localhost.
-const char* apiBaseUrl = "http://192.168.18.32:8000";
+const char* apiBaseUrl = "http://43.133.155.101:8099";
 
 // Isi jika .env Laravel memakai IOT_API_TOKEN. Kosongkan jika tidak dipakai.
-const char* iotToken = "";
+const char* iotToken = "c131e10fe1608540ee2b446a4bf9529846c883893dfdf261e288cf6124f26dfc";
 
 const char* sensorPath = "/api/iot/sensor";
 const char* controlPath = "/api/iot/control";

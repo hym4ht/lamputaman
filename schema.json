@@ -1,0 +1,78 @@
+{
+  "project_name": "Smart Garden IoT Dashboard",
+  "tech_stack": {
+    "backend": "Laravel 13",
+    "database": "MySQL",
+    "frontend": "Bootstrap 5 with Vite",
+    "iot_device": "ESP8266 (NodeMCU)"
+  },
+  "database_schema": [
+    {
+      "table": "users",
+      "columns": ["id", "name", "email", "password", "remember_token"]
+    },
+    {
+      "table": "sensor_data",
+      "columns": {
+        "suhu": "float",
+        "kelembaban": "float",
+        "created_at": "timestamp"
+      }
+    },
+    {
+      "table": "device_controls",
+      "columns": {
+        "device_name": "string (lampu1, lampu2, lampu3, pompa)",
+        "status": "boolean (default: 0)",
+        "updated_at": "timestamp"
+      }
+    },
+    {
+      "table": "pump_schedules",
+      "columns": {
+        "name": "string",
+        "days": "json array (1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu, 7=Minggu)",
+        "start_time": "time",
+        "duration_minutes": "integer",
+        "is_enabled": "boolean (default: 1)",
+        "created_at": "timestamp",
+        "updated_at": "timestamp"
+      }
+    }
+  ],
+  "api_endpoints": {
+    "sensor_post": {
+      "url": "/api/iot/sensor",
+      "method": "POST",
+      "request_body": {
+        "suhu": "decimal",
+        "kelembaban": "decimal"
+      },
+      "action": "Insert into sensor_data table"
+    },
+    "control_get": {
+      "url": "/api/iot/control",
+      "method": "GET",
+      "response_format": {
+        "lampu1": "integer",
+        "lampu2": "integer",
+        "lampu3": "integer",
+        "pompa": "integer"
+      },
+      "action": "Fetch latest status from device_controls table"
+    }
+  },
+  "web_features": {
+    "auth": "Login page for admin access",
+    "dashboard": {
+      "monitoring": "Real-time cards for Temperature and Humidity",
+      "charts": "Line chart using Chart.js for last 24 hours sensor data",
+      "control_switches": "AJAX toggle buttons for Lampu 1, 2, 3, and Pompa",
+      "pump_schedules": "Alarm-style automatic pump schedules by day, start time, duration, enabled/disabled state, with manual pump toggle still available"
+    }
+  },
+  "iot_logic_notes": {
+    "relay_type": "Active Low (Ensure Laravel sends 1 for ON, 0 for OFF)",
+    "esp8266_integration": "Match API endpoints with the provided Arduino C++ code"
+  }
+}

@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: lamputaman_app
+    restart: always
+    mem_limit: 512m
+    memswap_limit: 512m
+    ports:
+      - "8099:80"
+    volumes:
+      - .:/var/www/html
+    networks:
+      - lamputaman-network
+
+networks:
+  lamputaman-network:
+    driver: bridge

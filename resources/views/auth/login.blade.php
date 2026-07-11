@@ -3,15 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login | Smart Garden IoT Dashboard</title>
+    <title>Login | Garden Monitoring IoT Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="auth-page {{ file_exists(public_path('bg.png')) ? 'has-auth-bg' : '' }}">
     <main class="auth-shell">
         <section class="auth-panel">
             <div class="auth-copy">
-                <p class="eyebrow">Smart Garden IoT</p>
+                <img src="{{ asset('uhn_logo.png') }}" alt="Logo UHN Tegal" style="height: 64px; width: auto; margin-bottom: 24px; object-fit: contain;">
+                <p class="eyebrow">Garden Monitoring IoT X Universitas Harkat Negeri Tegal</p>
                 <h1>Dashboard Lampu Taman</h1>
                 <p class="auth-subtitle">Pantau suhu, kelembaban, dan kendalikan relay taman dari satu panel admin.</p>
             </div>
@@ -62,8 +64,13 @@
                 </div>
 
                 <button class="btn btn-primary w-100" type="submit">Masuk Dashboard</button>
+
+                <a href="{{ route('public.monitoring') }}" class="btn btn-outline-secondary w-100 mt-2 d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-arrow-left"></i> Kembali ke Monitoring
+                </a>
             </form>
         </section>
     </main>
 </body>
+<x-footer/>
 </html>

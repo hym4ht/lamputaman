@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Dashboard | Smart Garden IoT</title>
+    <title>Dashboard | Garden Monitoring IoT</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -35,10 +35,10 @@
         ];
     @endphp
 
-    <div class="app-container"
-         data-dashboard-url="{{ route('dashboard.data') }}"
-         data-toggle-base="{{ url('/dashboard/control') }}"
-         data-lamp-bulk-url="{{ route('dashboard.control.lamps.update') }}"
+<div class="app-container"
+         data-dashboard-url="/dashboard/data"
+         data-toggle-base="/dashboard/control"
+         data-lamp-bulk-url="/dashboard/control-lamps" 
          data-default-sensor-range="25m">
         @include('dashboard.partials.sidebar')
 
@@ -69,4 +69,5 @@
 
     
 </body>
+<x-footer />
 </html>

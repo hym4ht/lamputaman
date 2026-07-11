@@ -6,7 +6,7 @@
             </div>
             <div class="brand-text">
                 <h1>Lampu Taman</h1>
-                <p>Smart Garden IoT</p>
+                <p>Garden Monitoring IoT</p>
             </div>
         </div>
     </div>

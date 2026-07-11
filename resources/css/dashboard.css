@@ -335,6 +335,11 @@ body {
     color: #16a34a;
 }
 
+.metric-card.lamp .metric-icon {
+    background: #fef9c3;
+    color: #ca8a04;
+}
+
 .metric-value {
     font-size: 36px;
     font-weight: 700;
@@ -563,11 +568,11 @@ body {
     border-radius: 50%;
 }
 
-input:checked + .toggle-slider {
+input:checked+.toggle-slider {
     background-color: var(--color-accent);
 }
 
-input:checked + .toggle-slider:before {
+input:checked+.toggle-slider:before {
     transform: translateX(20px);
 }
 
@@ -579,7 +584,7 @@ input:checked + .toggle-slider:before {
     padding: var(--spacing-xl);
 }
 
-.schedule-panel > .section-header {
+.schedule-panel>.section-header {
     margin-bottom: var(--spacing-xl);
 }
 
@@ -615,8 +620,8 @@ input:checked + .toggle-slider:before {
     padding: 0;
 }
 
-.schedule-panel .schedule-form + .schedule-form,
-.schedule-panel .schedule-list + .schedule-list {
+.schedule-panel .schedule-form+.schedule-form,
+.schedule-panel .schedule-list+.schedule-list {
     border-top: 1px solid var(--color-border);
     padding-top: var(--spacing-lg);
 }
@@ -702,7 +707,7 @@ input:checked + .toggle-slider:before {
     text-transform: uppercase;
 }
 
-.day-checkbox input:checked + .day-label {
+.day-checkbox input:checked+.day-label {
     background: var(--color-accent);
     border-color: var(--color-accent);
     color: white;
@@ -855,6 +860,12 @@ input:checked + .toggle-slider:before {
 }
 
 /* Responsive */
+@media (max-width: 1100px) {
+    .content-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 @media (max-width: 768px) {
     .sidebar {
         top: 10px;
@@ -931,8 +942,17 @@ input:checked + .toggle-slider:before {
         margin-bottom: 0;
     }
 
-    .summary-screen .chart-section {
+    .summary-screen .content-grid {
         order: 1;
+    }
+
+    .chart-panel,
+    .control-panel {
+        padding: var(--spacing-md) !important;
+    }
+
+    .chart-box {
+        height: 260px !important;
     }
 
     .summary-screen .metric-card {
@@ -992,7 +1012,7 @@ input:checked + .toggle-slider:before {
         padding: var(--spacing-md);
     }
 
-    .schedule-panel > .section-header {
+    .schedule-panel>.section-header {
         margin-bottom: var(--spacing-md);
     }
 
@@ -1135,9 +1155,14 @@ input:checked + .toggle-slider:before {
         min-height: 190px;
     }
 
+    .chart-box {
+        height: 200px !important;
+    }
+
     .main-content {
         padding: 10px;
-        padding-bottom: 72px; /* Space untuk floating button */
+        padding-bottom: 72px;
+        /* Space untuk floating button */
     }
 
     .metric-value {

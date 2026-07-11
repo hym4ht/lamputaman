@@ -26,6 +26,12 @@ class DashboardController extends Controller
         '1d' => ['label' => '1 Hari', 'minutes' => 1440],
     ];
 
+    public function publicReport()
+    {
+    return view('public'); 
+                            }
+
+
     public function index(): View
     {
         DeviceControl::ensureDefaults();

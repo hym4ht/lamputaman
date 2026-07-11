@@ -100,6 +100,54 @@ if (dashboardPage) {
         setText('pumpNote', note);
     };
 
+    const renderLampStatus = (lamp, controls = {}, manualControls = {}) => {
+        if (!lamp) {
+            return;
+        }
+
+        const activeLampsCount = (controls['lampu1'] ? 1 : 0) + 
+                                 (controls['lampu2'] ? 1 : 0) + 
+                                 (controls['lampu3'] ? 1 : 0);
+        
+        let valueText = 'OFF';
+        if (activeLampsCount > 0) {
+            if (activeLampsCount === 3) {
+                valueText = 'SEMUA AKTIF';
+            } else {
+                valueText = `${activeLampsCount} AKTIF`;
+            }
+        }
+
+        // Update inline badges
+        const lampNames = ['lampu1', 'lampu2', 'lampu3'];
+        lampNames.forEach(device => {
+            const badgeEl = document.getElementById(`lampBadge-${device}`);
+            if (badgeEl) {
+                const isOn = Number(controls[device]) === 1;
+                if (isOn) {
+                    badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/50";
+                } else {
+                    badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400 border border-gray-200/50";
+                }
+            }
+        });
+
+        const hasManualLamp = manualControls['lampu1'] || manualControls['lampu2'] || manualControls['lampu3'];
+        let note = 'Menunggu jadwal/manual';
+
+        if (hasManualLamp && lamp.automatic_active) {
+            note = 'Manual + Jadwal aktif';
+        } else if (hasManualLamp) {
+            note = 'Tombol manual aktif';
+        } else if (lamp.automatic_active && lamp.active_schedules && lamp.active_schedules.length > 0) {
+            const scheduleNames = lamp.active_schedules.map(s => s.name).join(', ');
+            note = `Jadwal aktif: ${scheduleNames || 'Jadwal'}`;
+        }
+
+        setText('lampMode', valueText);
+        setText('lampNote', note);
+    };
+
     const renderLampBulkButton = (manualControls = {}) => {
         const button = document.querySelector('[data-lamp-bulk-toggle]');
 
@@ -152,6 +200,43 @@ if (dashboardPage) {
 
         renderLampBulkButton(manualControls);
         renderPumpStatus(pump);
+        renderLampStatus(lamp, controls, manualControls);
+
+        // Update Status Perangkat panel in admin summary (Ringkasan) screen
+        const deviceNames = ['lampu1', 'lampu2', 'lampu3', 'pompa'];
+        deviceNames.forEach(device => {
+            const badge = document.getElementById(`badge-${device}`);
+            const desc = document.getElementById(`status-desc-${device}`);
+            if (badge && desc) {
+                const isActive = Number(controls[device]) === 1;
+                const isManual = Number(manualControls[device]) === 1;
+                const isLamp = device.startsWith('lampu');
+                
+                if (isActive) {
+                    badge.textContent = "AKTIF";
+                    badge.style.background = "#dcfce7";
+                    badge.style.color = "#15803d";
+                    
+                    if (isLamp) {
+                        const isScheduledLamp = Number(lamp?.active_devices?.[device] ?? 0) === 1;
+                        if (isScheduledLamp && isManual) {
+                            desc.textContent = "Aktif (Manual + Jadwal)";
+                        } else if (isScheduledLamp) {
+                            desc.textContent = "Aktif (Jadwal)";
+                        } else {
+                            desc.textContent = "Aktif (Manual)";
+                        }
+                    } else {
+                        desc.textContent = `Penyiraman aktif (${pump?.source || 'Manual'})`;
+                    }
+                } else {
+                    badge.textContent = "MATI";
+                    badge.style.background = "#f3f4f6";
+                    badge.style.color = "#6b7280";
+                    desc.textContent = "Nonaktif";
+                }
+            }
+        });
     };
 
     const syncSensorRangeControls = () => {

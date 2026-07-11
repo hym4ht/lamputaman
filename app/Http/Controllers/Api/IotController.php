@@ -204,6 +204,6 @@ class IotController extends Controller
             abort_unless(hash_equals($token, (string) $incomingToken), 401, 'Token IoT tidak valid.');
         }
 
-        Cache::put('device_last_seen', now(), 120);
+        Cache::put('device_last_seen', now()->toIso8601String(), 120);
     }
 }

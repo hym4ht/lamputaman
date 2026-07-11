@@ -369,6 +369,9 @@ class DashboardController extends Controller
     private function deviceConnectionStatus(?SensorData $latest = null): array
     {
         $lastSeen = \Illuminate\Support\Facades\Cache::get('device_last_seen');
+        if ($lastSeen instanceof \__PHP_Incomplete_Class) {
+            $lastSeen = null;
+        }
         if (! $lastSeen) {
             $latest = $latest ?: SensorData::query()->latest('created_at')->first();
             $lastSeen = $latest?->created_at;

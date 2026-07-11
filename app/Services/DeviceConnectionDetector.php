@@ -10,6 +10,9 @@ class DeviceConnectionDetector
     public static function check(): void
     {
         $lastSeen = Cache::get('device_last_seen');
+        if ($lastSeen instanceof \__PHP_Incomplete_Class) {
+            $lastSeen = null;
+        }
         $isCurrentlyConnected = false;
 
         if ($lastSeen) {

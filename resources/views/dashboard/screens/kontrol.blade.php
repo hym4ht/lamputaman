@@ -11,7 +11,7 @@
                 ->every(fn (string $device): bool => (bool) ($manualControls[$device] ?? false));
         @endphp
         <div class="control-actions" aria-label="Kontrol semua lampu">
-            <button class="control-action-button {{ $allLampManualOn ? 'secondary' : '' }}"
+            <button class="btn-custom-primary {{ $allLampManualOn ? 'secondary' : '' }}"
                     type="button"
                     data-lamp-bulk-toggle
                     data-lamp-bulk-status="{{ $allLampManualOn ? 0 : 1 }}">

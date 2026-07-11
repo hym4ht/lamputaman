@@ -54,12 +54,39 @@
                 <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Kondisi Realtime Taman</h1>
                 <p class="text-sm text-gray-500 mt-1">Pantau kelembaban, suhu, dan status aktif perangkat secara live.</p>
             </div>
-            <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-100/80 px-3.5 py-1.5 rounded-full text-emerald-700 text-xs font-bold shadow-sm">
-                <span class="relative flex h-2.5 w-2.5">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span>Pembaruan Otomatis</span>
+            <div class="flex items-center flex-wrap gap-3">
+                <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-100/80 px-3.5 py-1.5 rounded-full text-emerald-700 text-xs font-bold shadow-sm">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span>Pembaruan Otomatis</span>
+                </div>
+                
+                <!-- Dropdown Unduh PDF -->
+                <div class="relative inline-block text-left">
+                    <button type="button" class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg text-gray-700 text-sm font-bold shadow-sm transition-all" id="downloadPdfDropdownBtn" aria-expanded="false" aria-haspopup="true">
+                        <i class="bi bi-file-earmark-pdf-fill text-red-500"></i>
+                        <span>Unduh Laporan</span>
+                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                    </button>
+                    <div class="hidden absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white border border-gray-100 ring-1 ring-black ring-opacity-5 focus:outline-none z-50 dropdown-menu" role="menu" aria-orientation="vertical" aria-labelledby="downloadPdfDropdownBtn">
+                        <div class="py-1" role="none">
+                            <a href="{{ route('export.pdf', ['range' => 'weekly']) }}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" role="menuitem">
+                                <i class="bi bi-calendar-event text-gray-400"></i>
+                                <span>Data Mingguan</span>
+                            </a>
+                            <a href="{{ route('export.pdf', ['range' => 'monthly']) }}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" role="menuitem">
+                                <i class="bi bi-calendar-month text-gray-400"></i>
+                                <span>Data Bulanan</span>
+                            </a>
+                            <a href="{{ route('export.pdf', ['range' => 'all']) }}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" role="menuitem">
+                                <i class="bi bi-database text-gray-400"></i>
+                                <span>Semua Data</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -142,28 +169,25 @@
                             <h2 class="section-title text-xl font-bold text-gray-800">Grafik Tren Sensor</h2>
                         </div>
                         
-                        <div class="chart-range-switch flex gap-1 p-1 bg-gray-50 border border-gray-200/80 rounded-lg" id="rangeSwitch" aria-label="Rentang grafik">
-                            <button class="chart-range-button crb px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-900" data-range="1m">1m</button>
-                            <button class="chart-range-button crb px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-900" data-range="5m">5m</button>
-                            <button class="chart-range-button crb active px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-900" data-range="25m">25m</button>
-                            <button class="chart-range-button crb px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-900" data-range="1h">1h</button>
-                            <button class="chart-range-button crb px-3 py-1.5 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-900" data-range="1d">1d</button>
+                        <div class="chart-range-switch-container" id="rangeSwitch" aria-label="Rentang grafik">
+                            <button class="chart-range-btn crb" data-range="1m">1m</button>
+                            <button class="chart-range-btn crb" data-range="5m">5m</button>
+                            <button class="chart-range-btn crb active" data-range="25m">25m</button>
+                            <button class="chart-range-btn crb" data-range="1h">1h</button>
+                            <button class="chart-range-btn crb" data-range="1d">1d</button>
                         </div>
                     </div>
 
                     <div class="flex gap-2 mb-4">
-                        <button class="cdb active" data-dataset="both"
-                            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;">
+                        <button class="chart-dataset-btn cdb active" data-dataset="both">
                             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,#6dab28,#42a5f5);"></span>
                             Keduanya
                         </button>
-                        <button class="cdb" data-dataset="suhu"
-                            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;">
+                        <button class="chart-dataset-btn cdb" data-dataset="suhu">
                             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6dab28;"></span>
                             Suhu
                         </button>
-                        <button class="cdb" data-dataset="kelembaban"
-                            style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;">
+                        <button class="chart-dataset-btn cdb" data-dataset="kelembaban">
                             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#42a5f5;"></span>
                             Kelembaban
                         </button>
@@ -599,6 +623,19 @@
         
         // Poll data every 5 seconds
         setInterval(fetchMonitoringData, 5000);
+
+        // Dropdown toggle logic
+        const dropdownBtn = document.getElementById('downloadPdfDropdownBtn');
+        const dropdownMenu = dropdownBtn?.nextElementSibling;
+        if (dropdownBtn && dropdownMenu) {
+            dropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', () => {
+                dropdownMenu.classList.add('hidden');
+            });
+        }
     </script>
 
     @if(config('firebase.project_id'))

@@ -31,6 +31,90 @@ class DashboardController extends Controller
     return view('public'); 
                             }
 
+    public function exportPdf(Request $request)
+    {
+        // Increase memory and time limits temporarily for PDF generation
+        ini_set('memory_limit', '256M');
+        set_time_limit(120);
+
+        $range = $request->query('range', 'weekly');
+        $query = SensorData::query()->toBase()->select('suhu', 'kelembaban', 'created_at');
+
+        $title = 'Laporan Data Sensor';
+        $periodLabel = '';
+
+        if ($range === 'weekly') {
+            $startDate = now()->subDays(7);
+            $query->where('created_at', '>=', $startDate);
+            $title = 'Laporan Mingguan Data Sensor';
+            $periodLabel = $startDate->format('d M Y') . ' - ' . now()->format('d M Y');
+        } elseif ($range === 'monthly') {
+            $startDate = now()->subDays(30);
+            $query->where('created_at', '>=', $startDate);
+            $title = 'Laporan Bulanan Data Sensor';
+            $periodLabel = $startDate->format('d M Y') . ' - ' . now()->format('d M Y');
+        } else {
+            $title = 'Laporan Keseluruhan Data Sensor';
+            $firstRecord = SensorData::query()->orderBy('created_at', 'asc')->first();
+            $startLabel = $firstRecord && $firstRecord->created_at ? \Illuminate\Support\Carbon::parse($firstRecord->created_at)->format('d M Y') : now()->format('d M Y');
+            $periodLabel = $startLabel . ' - ' . now()->format('d M Y');
+        }
+
+        // Fetch records ordered by created_at desc (newest first)
+        $allReadings = $query->orderBy('created_at', 'desc')->get();
+
+        // Calculate statistics based on the full dataset in the range
+        $totalCount = $allReadings->count();
+        
+        $avgSuhu = $totalCount > 0 ? round($allReadings->avg('suhu'), 1) : 0;
+        $avgKelembaban = $totalCount > 0 ? round($allReadings->avg('kelembaban'), 1) : 0;
+        
+        $minSuhu = $totalCount > 0 ? round($allReadings->min('suhu'), 1) : 0;
+        $maxSuhu = $totalCount > 0 ? round($allReadings->max('suhu'), 1) : 0;
+        
+        $minKelembaban = $totalCount > 0 ? round($allReadings->min('kelembaban'), 1) : 0;
+        $maxKelembaban = $totalCount > 0 ? round($allReadings->max('kelembaban'), 1) : 0;
+
+        // Sample the data to prevent memory issues (max 500 rows in PDF table)
+        $maxPoints = 500;
+        if ($totalCount > $maxPoints) {
+            $step = (int) ceil($totalCount / $maxPoints);
+            $readings = $allReadings->filter(function ($value, $key) use ($step) {
+                return $key % $step === 0;
+            })->values();
+            $sampled = true;
+        } else {
+            $readings = $allReadings;
+            $sampled = false;
+        }
+
+        // Sort ascending for chronological view
+        // Since $readings are standard objects, we convert created_at to Carbon when displaying
+        $readings = $readings->map(function ($r) {
+            $r->created_at_parsed = \Illuminate\Support\Carbon::parse($r->created_at);
+            return $r;
+        })->sortBy('created_at_parsed');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.report', [
+            'title' => $title,
+            'periodLabel' => $periodLabel,
+            'readings' => $readings,
+            'totalCount' => $totalCount,
+            'renderedCount' => $readings->count(),
+            'avgSuhu' => $avgSuhu,
+            'avgKelembaban' => $avgKelembaban,
+            'minSuhu' => $minSuhu,
+            'maxSuhu' => $maxSuhu,
+            'minKelembaban' => $minKelembaban,
+            'maxKelembaban' => $maxKelembaban,
+            'range' => $range,
+            'sampled' => $sampled,
+        ]);
+
+        $filename = 'laporan_sensor_' . $range . '_' . now()->format('Ymd_His') . '.pdf';
+        return $pdf->download($filename);
+    }
+
 
     public function index(): View
     {

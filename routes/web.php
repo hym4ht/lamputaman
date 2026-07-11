@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [DashboardController::class, 'publicReport'])->name('public.monitoring');
 Route::get('/public/dashboard/data', [DashboardController::class, 'data'])->name('public.dashboard.data');
+Route::get('/export-pdf', [DashboardController::class, 'exportPdf'])->name('export.pdf');
 
 // MIDDLEWARE GUEST (Hanya untuk yang belum login)
 Route::middleware('guest')->group(function (): void {

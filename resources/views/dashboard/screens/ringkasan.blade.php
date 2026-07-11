@@ -84,30 +84,52 @@
                     <div class="section-label" id="sensorRangeLabel">25 Menit Terakhir</div>
                     <h2 class="section-title">Grafik Sensor</h2>
                 </div>
-                <!-- Range buttons -->
-                <div id="rangeSwitch" style="display:flex; gap:4px; background:#f5f5f5; padding:4px; border-radius:8px;" aria-label="Rentang grafik">
-                    <button class="crb" data-range="1m"  style="padding:6px 12px;border:none;background:transparent;border-radius:6px;font-size:13px;font-weight:500;color:#666;cursor:pointer;transition:all .2s;">1 Menit</button>
-                    <button class="crb" data-range="5m"  style="padding:6px 12px;border:none;background:transparent;border-radius:6px;font-size:13px;font-weight:500;color:#666;cursor:pointer;transition:all .2s;">5 Menit</button>
-                    <button class="crb active" data-range="25m" style="padding:6px 12px;border:none;background:#fff;border-radius:6px;font-size:13px;font-weight:500;color:#6dab28;cursor:pointer;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.1);">25 Menit</button>
-                    <button class="crb" data-range="1h"  style="padding:6px 12px;border:none;background:transparent;border-radius:6px;font-size:13px;font-weight:500;color:#666;cursor:pointer;transition:all .2s;">1 Jam</button>
-                    <button class="crb" data-range="1d"  style="padding:6px 12px;border:none;background:transparent;border-radius:6px;font-size:13px;font-weight:500;color:#666;cursor:pointer;transition:all .2s;">1 Hari</button>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <!-- Dropdown Unduh PDF -->
+                    <div class="dropdown" style="position: relative; display: inline-block;">
+                        <button type="button" class="desktop-sidebar-toggle" id="downloadPdfDropdownBtnAdmin" style="height: 32px; min-height: 32px; padding: 6px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-muted); cursor: pointer; transition: all 0.2s ease;">
+                            <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+                            <span>Unduh Laporan</span>
+                            <i class="bi bi-chevron-down" style="font-size: 10px;"></i>
+                        </button>
+                        <div class="dropdown-menu-admin" id="dropdownMenuAdmin" style="display: none; position: absolute; right: 0; mt: 6px; width: 180px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-md); z-index: 50; padding: 4px 0;">
+                            <a href="{{ route('export.pdf', ['range' => 'weekly']) }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                                <i class="bi bi-calendar-event text-muted"></i>
+                                <span>Data Mingguan</span>
+                            </a>
+                            <a href="{{ route('export.pdf', ['range' => 'monthly']) }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                                <i class="bi bi-calendar-month text-muted"></i>
+                                <span>Data Bulanan</span>
+                            </a>
+                            <a href="{{ route('export.pdf', ['range' => 'all']) }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                                <i class="bi bi-database text-muted"></i>
+                                <span>Semua Data</span>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Range buttons -->
+                    <div class="chart-range-switch-container" id="rangeSwitch" aria-label="Rentang grafik">
+                        <button class="chart-range-btn crb" data-range="1m">1 Menit</button>
+                        <button class="chart-range-btn crb" data-range="5m">5 Menit</button>
+                        <button class="chart-range-btn crb active" data-range="25m">25 Menit</button>
+                        <button class="chart-range-btn crb" data-range="1h">1 Jam</button>
+                        <button class="chart-range-btn crb" data-range="1d">1 Hari</button>
+                    </div>
                 </div>
             </div>
 
             <!-- Dataset toggle -->
             <div style="display:flex; gap:8px; margin-bottom:14px;">
-                <button class="cdb active" data-dataset="both"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;border-color:#6dab28;color:#6dab28;box-shadow:0 0 0 3px rgba(109,171,40,.1);">
+                <button class="chart-dataset-btn cdb active" data-dataset="both">
                     <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,#6dab28,#42a5f5);"></span>
                     Keduanya
                 </button>
-                <button class="cdb" data-dataset="suhu"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;">
+                <button class="chart-dataset-btn cdb" data-dataset="suhu">
                     <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6dab28;"></span>
                     Suhu
                 </button>
-                <button class="cdb" data-dataset="kelembaban"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#555;cursor:pointer;transition:all .2s;">
+                <button class="chart-dataset-btn cdb" data-dataset="kelembaban">
                     <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#42a5f5;"></span>
                     Kelembaban
                 </button>
@@ -395,11 +417,11 @@
     const rangeLabels = { '1m':'1 Menit Terakhir','5m':'5 Menit Terakhir','25m':'25 Menit Terakhir','1h':'1 Jam Terakhir','1d':'1 Hari Terakhir' };
 
     function refreshRangeButtons() {
+        // Handled via CSS class toggles, clear inline style overrides
         document.querySelectorAll('.crb').forEach(btn => {
-            const isActive = btn.classList.contains('active');
-            btn.style.background = isActive ? '#fff' : 'transparent';
-            btn.style.color      = isActive ? '#6dab28' : '#666';
-            btn.style.boxShadow  = isActive ? '0 1px 3px rgba(0,0,0,.1)' : 'none';
+            btn.style.background = '';
+            btn.style.color      = '';
+            btn.style.boxShadow  = '';
         });
     }
 
@@ -425,8 +447,6 @@
             document.getElementById('sensorRangeLabel').textContent = rangeLabels[this.dataset.range];
             loadSensorData(this.dataset.range);
         });
-        btn.addEventListener('mouseenter', function () { if (!this.classList.contains('active')) this.style.background = '#e8e8e8'; });
-        btn.addEventListener('mouseleave', function () { if (!this.classList.contains('active')) this.style.background = 'transparent'; });
     });
 
     // ── Auto-refresh & init ───────────────────────────────────
@@ -436,4 +456,21 @@
     }, 5000);
 
     loadSensorData('25m');
+
+    // Dropdown toggle logic
+    const dropdownBtnAdmin = document.getElementById('downloadPdfDropdownBtnAdmin');
+    const dropdownMenuAdmin = document.getElementById('dropdownMenuAdmin');
+    if (dropdownBtnAdmin && dropdownMenuAdmin) {
+        dropdownBtnAdmin.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdownMenuAdmin.style.display === 'none' || dropdownMenuAdmin.style.display === '') {
+                dropdownMenuAdmin.style.display = 'block';
+            } else {
+                dropdownMenuAdmin.style.display = 'none';
+            }
+        });
+        document.addEventListener('click', () => {
+            dropdownMenuAdmin.style.display = 'none';
+        });
+    }
     </script>

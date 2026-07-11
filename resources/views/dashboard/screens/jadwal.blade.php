@@ -59,7 +59,7 @@
                         </div>
                     </div>
 
-                    <button class="btn-primary" type="submit">Tambah Jadwal Lampu</button>
+                    <button class="btn-custom-primary w-100" type="submit">Tambah Jadwal Lampu</button>
                 </form>
             </div>
 
@@ -158,7 +158,7 @@
                         </label>
                     </div>
 
-                    <button class="btn-primary" type="submit">Tambah Jadwal Pompa</button>
+                    <button class="btn-custom-primary w-100" type="submit">Tambah Jadwal Pompa</button>
                 </form>
             </div>
         </div>
@@ -189,7 +189,7 @@
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="is_enabled" value="{{ $schedule->is_enabled ? 0 : 1 }}">
-                                    <button class="btn-sm" type="submit">
+                                    <button class="btn-custom-sm" type="submit">
                                         {{ $schedule->is_enabled ? 'Matikan' : 'Aktifkan' }}
                                     </button>
                                 </form>
@@ -197,7 +197,7 @@
                                 <form method="POST" action="{{ route('dashboard.lamp-schedules.destroy', $schedule) }}" style="display: inline;">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn-sm btn-danger" type="submit">Hapus</button>
+                                    <button class="btn-custom-danger" type="submit">Hapus</button>
                                 </form>
                             </div>
                         </div>
@@ -235,7 +235,7 @@
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="is_enabled" value="{{ $schedule->is_enabled ? 0 : 1 }}">
-                                    <button class="btn-sm" type="submit">
+                                    <button class="btn-custom-sm" type="submit">
                                         {{ $schedule->is_enabled ? 'Matikan' : 'Aktifkan' }}
                                     </button>
                                 </form>
@@ -243,7 +243,7 @@
                                 <form method="POST" action="{{ route('dashboard.pump-schedules.destroy', $schedule) }}" style="display: inline;">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn-sm btn-danger" type="submit">Hapus</button>
+                                    <button class="btn-custom-danger" type="submit">Hapus</button>
                                 </form>
                             </div>
                         </div>

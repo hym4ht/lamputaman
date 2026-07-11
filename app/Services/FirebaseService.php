@@ -15,7 +15,7 @@ class FirebaseService
     public function __construct()
     {
         // Try loading from JSON file first
-        $credentialsPath = env('FIREBASE_CREDENTIALS');
+        $credentialsPath = config('firebase.credentials');
         if ($credentialsPath && file_exists(base_path($credentialsPath))) {
             $json = @file_get_contents(base_path($credentialsPath));
             if ($json) {
@@ -28,9 +28,9 @@ class FirebaseService
             }
         } else {
             // Fallback to direct environment variables
-            $this->projectId = env('FIREBASE_PROJECT_ID');
-            $this->clientEmail = env('FIREBASE_CLIENT_EMAIL');
-            $this->privateKey = env('FIREBASE_PRIVATE_KEY') ? str_replace('\n', "\n", env('FIREBASE_PRIVATE_KEY')) : null;
+            $this->projectId = config('firebase.project_id');
+            $this->clientEmail = config('firebase.client_email');
+            $this->privateKey = config('firebase.private_key') ? str_replace('\n', "\n", config('firebase.private_key')) : null;
         }
     }
 

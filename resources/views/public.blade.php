@@ -601,20 +601,20 @@
         setInterval(fetchMonitoringData, 5000);
     </script>
 
-    @if(env('FIREBASE_PROJECT_ID'))
+    @if(config('firebase.project_id'))
     <!-- Firebase Cloud Messaging Setup -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
     <script>
         window.firebaseConfig = {
-            apiKey: "{{ env('FIREBASE_API_KEY') }}",
-            authDomain: "{{ env('FIREBASE_AUTH_DOMAIN') }}",
-            projectId: "{{ env('FIREBASE_PROJECT_ID') }}",
-            storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET') }}",
-            messagingSenderId: "{{ env('FIREBASE_MESSAGING_SENDER_ID') }}",
-            appId: "{{ env('FIREBASE_APP_ID') }}"
+            apiKey: "{{ config('firebase.api_key') }}",
+            authDomain: "{{ config('firebase.auth_domain') }}",
+            projectId: "{{ config('firebase.project_id') }}",
+            storageBucket: "{{ config('firebase.storage_bucket') }}",
+            messagingSenderId: "{{ config('firebase.messaging_sender_id') }}",
+            appId: "{{ config('firebase.app_id') }}"
         };
-        window.firebaseVapidKey = "{{ env('FIREBASE_VAPID_KEY') }}";
+        window.firebaseVapidKey = "{{ config('firebase.vapid_key') }}";
 
         if (window.firebaseConfig.apiKey) {
             firebase.initializeApp(window.firebaseConfig);

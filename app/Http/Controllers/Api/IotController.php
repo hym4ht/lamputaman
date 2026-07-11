@@ -16,6 +16,20 @@ class IotController extends Controller
         $this->authorizeDevice($request);
         \App\Services\DeviceConnectionDetector::check();
 
+        // Check if sensor is reported as null (broken sensor)
+        if ($request->has('suhu') && $request->has('kelembaban') &&
+            ($request->json('suhu') === null || $request->json('kelembaban') === null)) {
+            
+            $this->notifySensorBroken();
+
+            return response()->json([
+                'message' => 'Status sensor rusak berhasil diterima.',
+            ], 200);
+        }
+
+        // Clear broken sensor alert cache when valid reading is received
+        Cache::forget('fcm_notify_sensor_broken');
+
         $validated = $request->validate([
             'suhu' => ['required', 'numeric'],
             'kelembaban' => ['required', 'numeric', 'between:0,100'],
@@ -205,5 +219,22 @@ class IotController extends Controller
         }
 
         Cache::put('device_last_seen', now()->toIso8601String(), 120);
+    }
+
+    private function notifySensorBroken(): void
+    {
+        $firebase = app(\App\Services\FirebaseService::class);
+        if (!$firebase->isConfigured()) {
+            return;
+        }
+
+        $cacheKey = 'fcm_notify_sensor_broken';
+        if (!Cache::has($cacheKey)) {
+            $firebase->broadcast(
+                "⚠️ Peringatan: Sensor DHT Rusak / Terputus",
+                "Sistem mendeteksi bahwa sensor suhu dan kelembaban (DHT) pada alat NodeMCU mengalami kegagalan pembacaan atau terputus."
+            );
+            Cache::put($cacheKey, true, 3600); // Throttle 1 hour
+        }
     }
 }

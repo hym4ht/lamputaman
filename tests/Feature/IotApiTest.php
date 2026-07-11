@@ -127,4 +127,28 @@ class IotApiTest extends TestCase
             'X-IOT-TOKEN' => 'secret-token',
         ])->assertOk();
     }
+
+    public function test_sensor_endpoint_handles_broken_sensor_report(): void
+    {
+        $mock = $this->mock(\App\Services\FirebaseService::class);
+        $mock->shouldReceive('isConfigured')->once()->andReturn(true);
+        $mock->shouldReceive('broadcast')
+            ->once()
+            ->with(
+                '⚠️ Peringatan: Sensor DHT Rusak / Terputus',
+                $this->stringContains('sensor suhu dan kelembaban (DHT)')
+            );
+
+        $response = $this->postJson('/api/iot/sensor', [
+            'suhu' => null,
+            'kelembaban' => null,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Status sensor rusak berhasil diterima.');
+
+        // Verify that database was NOT populated with nulls
+        $this->assertDatabaseEmpty('sensor_data');
+    }
 }

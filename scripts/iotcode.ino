@@ -116,14 +116,16 @@ void sendSensorData() {
   float suhu = dht.readTemperature();
   float kelembaban = dht.readHumidity();
 
-  if (isnan(suhu) || isnan(kelembaban)) {
-    Serial.println("Gagal membaca sensor DHT. Kontrol relay tetap dicek.");
-    return;
-  }
-
   StaticJsonDocument<160> requestDoc;
-  requestDoc["suhu"] = suhu;
-  requestDoc["kelembaban"] = kelembaban;
+
+  if (isnan(suhu) || isnan(kelembaban)) {
+    Serial.println("Gagal membaca sensor DHT. Mengirim status error ke server...");
+    requestDoc["suhu"] = nullptr;
+    requestDoc["kelembaban"] = nullptr;
+  } else {
+    requestDoc["suhu"] = suhu;
+    requestDoc["kelembaban"] = kelembaban;
+  }
 
   String requestBody;
   serializeJson(requestDoc, requestBody);

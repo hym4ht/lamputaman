@@ -87,23 +87,32 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <!-- Dropdown Unduh PDF -->
                     <div class="dropdown" style="position: relative; display: inline-block;">
-                        <button type="button" class="desktop-sidebar-toggle" id="downloadPdfDropdownBtnAdmin" style="height: 32px; min-height: 32px; padding: 6px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-muted); cursor: pointer; transition: all 0.2s ease;">
+                        <button type="button" class="desktop-sidebar-toggle" id="downloadPdfDropdownBtnAdmin" style="display: inline-flex; align-items: center; gap: 6px;">
                             <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
                             <span>Unduh Laporan</span>
                             <i class="bi bi-chevron-down" style="font-size: 10px;"></i>
                         </button>
-                        <div class="dropdown-menu-admin" id="dropdownMenuAdmin" style="display: none; position: absolute; right: 0; mt: 6px; width: 180px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-md); z-index: 50; padding: 4px 0;">
-                            <a href="{{ route('export.pdf', ['range' => 'weekly']) }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
-                                <i class="bi bi-calendar-event text-muted"></i>
-                                <span>Data Mingguan</span>
+                        <div class="dropdown-menu-admin" id="dropdownMenuAdmin" style="display: none; position: absolute; right: 0; margin-top: 8px; width: 200px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-lg); z-index: 50; padding: 6px;">
+                            <a href="{{ route('export.pdf', ['range' => 'weekly']) }}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; border-radius: var(--radius-sm); transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger" style="font-size: 14px;"></i>
+                                    <span style="font-weight: 500;">Data Mingguan</span>
+                                </div>
+                                <i class="bi bi-download" style="font-size: 11px; color: var(--color-text-muted);"></i>
                             </a>
-                            <a href="{{ route('export.pdf', ['range' => 'monthly']) }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
-                                <i class="bi bi-calendar-month text-muted"></i>
-                                <span>Data Bulanan</span>
+                            <a href="{{ route('export.pdf', ['range' => 'monthly']) }}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; border-radius: var(--radius-sm); transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger" style="font-size: 14px;"></i>
+                                    <span style="font-weight: 500;">Data Bulanan</span>
+                                </div>
+                                <i class="bi bi-download" style="font-size: 11px; color: var(--color-text-muted);"></i>
                             </a>
-                            <a href="{{ route('export.pdf', ['range' => 'all']) }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
-                                <i class="bi bi-database text-muted"></i>
-                                <span>Semua Data</span>
+                            <a href="{{ route('export.pdf', ['range' => 'all']) }}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; text-decoration: none; color: var(--color-text); font-size: 13px; border-radius: var(--radius-sm); transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger" style="font-size: 14px;"></i>
+                                    <span style="font-weight: 500;">Semua Data</span>
+                                </div>
+                                <i class="bi bi-download" style="font-size: 11px; color: var(--color-text-muted);"></i>
                             </a>
                         </div>
                     </div>

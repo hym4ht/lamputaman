@@ -1335,3 +1335,7 @@ input:checked+.toggle-slider:before {
     color: var(--color-text) !important;
     border-color: #d4d4d4 !important;
 }
+
+.w-100 {
+    width: 100% !important;
+}

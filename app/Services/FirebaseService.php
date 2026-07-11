@@ -17,10 +17,15 @@ class FirebaseService
         // Try loading from JSON file first
         $credentialsPath = env('FIREBASE_CREDENTIALS');
         if ($credentialsPath && file_exists(base_path($credentialsPath))) {
-            $config = json_decode(file_get_contents(base_path($credentialsPath)), true);
-            $this->projectId = $config['project_id'] ?? null;
-            $this->clientEmail = $config['client_email'] ?? null;
-            $this->privateKey = $config['private_key'] ?? null;
+            $json = @file_get_contents(base_path($credentialsPath));
+            if ($json) {
+                $config = json_decode($json, true);
+                if (is_array($config)) {
+                    $this->projectId = $config['project_id'] ?? null;
+                    $this->clientEmail = $config['client_email'] ?? null;
+                    $this->privateKey = $config['private_key'] ?? null;
+                }
+            }
         } else {
             // Fallback to direct environment variables
             $this->projectId = env('FIREBASE_PROJECT_ID');
@@ -42,12 +47,12 @@ class FirebaseService
 
         // Cache token for 55 minutes
         return Cache::remember('firebase_fcm_access_token', 3300, function () {
-            $jwt = $this->generateJwt();
-            if (!$jwt) {
-                return null;
-            }
-
             try {
+                $jwt = $this->generateJwt();
+                if (!$jwt) {
+                    return null;
+                }
+
                 $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
                     'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                     'assertion' => $jwt,
@@ -61,7 +66,7 @@ class FirebaseService
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('FCM OAuth Token Exception', ['message' => $e->getMessage()]);
             }
 
@@ -71,6 +76,11 @@ class FirebaseService
 
     protected function generateJwt(): ?string
     {
+        if (!function_exists('openssl_sign')) {
+            Log::error('FCM: openssl_sign function is not available. Please enable the openssl extension.');
+            return null;
+        }
+
         $header = json_encode(['alg' => 'RS256', 'typ' => 'JWT']);
         
         $now = time();
@@ -85,16 +95,21 @@ class FirebaseService
         $base64UrlHeader = $this->base64UrlEncode($header);
         $base64UrlPayload = $this->base64UrlEncode($payload);
 
-        $signature = '';
-        $success = openssl_sign(
-            $base64UrlHeader . "." . $base64UrlPayload,
-            $signature,
-            $this->privateKey,
-            OPENSSL_ALGO_SHA256
-        );
+        try {
+            $signature = '';
+            $success = @openssl_sign(
+                $base64UrlHeader . "." . $base64UrlPayload,
+                $signature,
+                $this->privateKey,
+                OPENSSL_ALGO_SHA256
+            );
 
-        if (!$success) {
-            Log::error('FCM JWT signature creation failed. Check private key format.');
+            if (!$success) {
+                Log::error('FCM JWT signature creation failed. Check private key format.');
+                return null;
+            }
+        } catch (\Throwable $e) {
+            Log::error('FCM JWT signature creation exception: ' . $e->getMessage());
             return null;
         }
 

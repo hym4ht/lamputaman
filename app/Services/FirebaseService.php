@@ -132,22 +132,27 @@ class FirebaseService
         }
 
         try {
+            $message = [
+                'topic' => $topic,
+                'notification' => [
+                    'title' => $title,
+                    'body' => $body,
+                ],
+                'webpush' => [
+                    'notification' => [
+                        'icon' => '/logo.png',
+                        'badge' => '/logo.png',
+                    ]
+                ]
+            ];
+
+            if (!empty($data)) {
+                $message['data'] = array_map('strval', $data);
+            }
+
             $response = Http::withToken($accessToken)
                 ->post("https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send", [
-                    'message' => [
-                        'topic' => $topic,
-                        'notification' => [
-                            'title' => $title,
-                            'body' => $body,
-                        ],
-                        'data' => array_map('strval', $data),
-                        'webpush' => [
-                            'notification' => [
-                                'icon' => '/logo.png',
-                                'badge' => '/logo.png',
-                            ]
-                        ]
-                    ]
+                    'message' => $message
                 ]);
 
             if ($response->successful()) {
@@ -174,22 +179,27 @@ class FirebaseService
         }
 
         try {
+            $message = [
+                'token' => $token,
+                'notification' => [
+                    'title' => $title,
+                    'body' => $body,
+                ],
+                'webpush' => [
+                    'notification' => [
+                        'icon' => '/logo.png',
+                        'badge' => '/logo.png',
+                    ]
+                ]
+            ];
+
+            if (!empty($data)) {
+                $message['data'] = array_map('strval', $data);
+            }
+
             $response = Http::withToken($accessToken)
                 ->post("https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send", [
-                    'message' => [
-                        'token' => $token,
-                        'notification' => [
-                            'title' => $title,
-                            'body' => $body,
-                        ],
-                        'data' => array_map('strval', $data),
-                        'webpush' => [
-                            'notification' => [
-                                'icon' => '/logo.png',
-                                'badge' => '/logo.png',
-                            ]
-                        ]
-                    ]
+                    'message' => $message
                 ]);
 
             if ($response->successful()) {

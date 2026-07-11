@@ -439,11 +439,124 @@
         try {
             const res  = await fetch(`/dashboard/data?sensor_range=${range}`);
             const data = await res.json();
+            
+            // Update chart
             sensorChart.data.labels            = data.readings.map(r => r.label);
             sensorChart.data.datasets[0].data  = data.readings.map(r => r.suhu);
             sensorChart.data.datasets[1].data  = data.readings.map(r => r.kelembaban);
             applyDatasetVisibility();
-        } catch (e) { console.error('Error:', e); }
+
+            // Update metrics cards
+            if (data.latest) {
+                const tempVal = document.getElementById('temperatureValue');
+                if (tempVal) tempVal.textContent = Number(data.latest.suhu).toFixed(1);
+                
+                const humidVal = document.getElementById('humidityValue');
+                if (humidVal) humidVal.textContent = Number(data.latest.kelembaban).toFixed(1);
+
+                const tempTime = document.getElementById('latestTemperatureTime');
+                if (tempTime) tempTime.textContent = data.latest.label;
+
+                const humidTime = document.getElementById('latestHumidityTime');
+                if (humidTime) humidTime.textContent = data.latest.label;
+            } else {
+                const tempVal = document.getElementById('temperatureValue');
+                if (tempVal) tempVal.textContent = '--';
+                
+                const humidVal = document.getElementById('humidityValue');
+                if (humidVal) humidVal.textContent = '--';
+
+                const tempTime = document.getElementById('latestTemperatureTime');
+                if (tempTime) tempTime.textContent = 'Belum ada data sensor';
+
+                const humidTime = document.getElementById('latestHumidityTime');
+                if (humidTime) humidTime.textContent = 'Menunggu NodeMCU';
+            }
+
+            // Update Connection Status
+            const apiStatus = document.getElementById('apiStatus');
+            if (apiStatus) {
+                const isConnected = !!data.device_connected;
+                apiStatus.textContent = isConnected ? 'TERHUBUNG' : 'TERPUTUS';
+                apiStatus.className = `metric-value compact ${isConnected ? 'text-success' : 'text-danger'}`;
+                
+                const lastRefresh = document.getElementById('lastRefresh');
+                if (lastRefresh) {
+                    if (data.device_last_seen) {
+                        lastRefresh.textContent = `Terakhir aktif: ${data.device_last_seen}`;
+                    } else {
+                        lastRefresh.textContent = 'Belum ada koneksi dari alat';
+                    }
+                }
+            }
+
+            // Update Pump Mode & Note
+            if (data.pump) {
+                const pumpMode = document.getElementById('pumpMode');
+                if (pumpMode) {
+                    pumpMode.textContent = data.pump.effective_active ? data.pump.source : 'OFF';
+                }
+                const pumpNote = document.getElementById('pumpNote');
+                if (pumpNote) {
+                    let note = 'Menunggu jadwal/manual';
+                    if (data.pump.manual_active) {
+                        note = 'Tombol manual aktif';
+                    } else if (data.pump.automatic_active && data.pump.active_schedule) {
+                        note = `${data.pump.active_schedule.name} · ${data.pump.active_schedule.start_time} · ${data.pump.active_schedule.duration_minutes} menit`;
+                    }
+                    pumpNote.textContent = note;
+                }
+            }
+
+            // Update devices status list (Status Perangkat list)
+            if (data.controls && data.manual_controls && data.lamp) {
+                const deviceNames = ['lampu1', 'lampu2', 'lampu3', 'pompa'];
+                deviceNames.forEach(device => {
+                    const badge = document.getElementById(`badge-${device}`);
+                    const desc = document.getElementById(`status-desc-${device}`);
+                    if (badge && desc) {
+                        const isActive = Number(data.controls[device]) === 1;
+                        const isManual = Number(data.manual_controls[device]) === 1;
+                        const isLamp = device.startsWith('lampu');
+                        
+                        if (isActive) {
+                            badge.textContent = "AKTIF";
+                            badge.style.background = "#dcfce7";
+                            badge.style.color = "#15803d";
+                            
+                            if (isLamp) {
+                                const isScheduledLamp = Number(data.lamp?.active_devices?.[device] ?? 0) === 1;
+                                if (isScheduledLamp && isManual) {
+                                    desc.textContent = "Aktif (Manual + Jadwal)";
+                                } else if (isScheduledLamp) {
+                                    desc.textContent = "Aktif (Jadwal)";
+                                } else {
+                                    desc.textContent = "Aktif (Manual)";
+                                }
+                            } else {
+                                desc.textContent = `Penyiraman aktif (${data.pump?.source || 'Manual'})`;
+                            }
+                        } else {
+                            badge.textContent = "MATI";
+                            badge.style.background = "#f3f4f6";
+                            badge.style.color = "#6b7280";
+                            desc.textContent = "Nonaktif";
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            const apiStatus = document.getElementById('apiStatus');
+            if (apiStatus) {
+                apiStatus.textContent = 'TERPUTUS';
+                apiStatus.className = 'metric-value compact text-danger';
+                const lastRefresh = document.getElementById('lastRefresh');
+                if (lastRefresh) {
+                    lastRefresh.textContent = 'Koneksi ke server gagal';
+                }
+            }
+        }
     }
 
     // ── Range buttons ─────────────────────────────────────────

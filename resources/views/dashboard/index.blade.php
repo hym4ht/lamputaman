@@ -139,6 +139,51 @@
         }
     </script>
     @endif
+    <script>
+    // Fallback/Inline Sidebar Toggling
+    document.addEventListener('DOMContentLoaded', () => {
+        const dashboardPage = document.querySelector('.app-container');
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        const desktopSidebarToggle = document.getElementById('desktopSidebarToggle');
+        const desktopSidebarToggleLabel = document.getElementById('desktopSidebarToggleLabel');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+        // Apply saved desktop state
+        if (localStorage.getItem('desktopSidebarCollapsed') === 'true') {
+            dashboardPage?.classList.add('sidebar-collapsed');
+            desktopSidebarToggle?.setAttribute('aria-pressed', 'true');
+            if (desktopSidebarToggleLabel) desktopSidebarToggleLabel.textContent = 'Show menu';
+        }
+
+        desktopSidebarToggle?.addEventListener('click', () => {
+            const isCollapsed = dashboardPage?.classList.toggle('sidebar-collapsed');
+            desktopSidebarToggle.setAttribute('aria-pressed', isCollapsed ? 'true' : 'false');
+            if (desktopSidebarToggleLabel) desktopSidebarToggleLabel.textContent = isCollapsed ? 'Show menu' : 'Full screen';
+            localStorage.setItem('desktopSidebarCollapsed', isCollapsed ? 'true' : 'false');
+        });
+
+        const setMobileOpen = (open) => {
+            if (open) {
+                dashboardPage?.classList.add('sidebar-open');
+                sidebar?.classList.add('open');
+                sidebarBackdrop?.classList.add('visible');
+            } else {
+                dashboardPage?.classList.remove('sidebar-open');
+                sidebar?.classList.remove('open');
+                sidebarBackdrop?.classList.remove('visible');
+            }
+        };
+
+        menuToggle?.addEventListener('click', () => {
+            setMobileOpen(!sidebar?.classList.contains('open'));
+        });
+
+        sidebarBackdrop?.addEventListener('click', () => {
+            setMobileOpen(false);
+        });
+    });
+    </script>
 </body>
 <x-footer />
 </html>

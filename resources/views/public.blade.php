@@ -356,6 +356,391 @@
                 ctx.restore();
             }
         };
+
+        // ── Chart config ──────────────────────────────────────────
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const sensorChart = new Chart(ctx, {
+            type: 'line',
+            plugins: [gradientPlugin, crosshairPlugin],
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Suhu (°C)',
+                    data: [],
+                    borderColor: '#6dab28',
+                    backgroundColor: 'rgba(109,171,40,0.4)',
+                    borderWidth: 2.5, fill: true, tension: 0.35,
+                    pointRadius: 0, pointHitRadius: 20, pointHoverRadius: 7,
+                    pointHoverBackgroundColor: '#6dab28',
+                    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2.5,
+                }, {
+                    label: 'Kelembaban (%)',
+                    data: [],
+                    borderColor: '#42a5f5',
+                    backgroundColor: 'rgba(66,165,245,0.3)',
+                    borderWidth: 2.5, fill: true, tension: 0.35,
+                    pointRadius: 0, pointHitRadius: 20, pointHoverRadius: 7,
+                    pointHoverBackgroundColor: '#42a5f5',
+                    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2.5,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#fff', titleColor: '#222', bodyColor: '#555',
+                        borderColor: 'rgba(0,0,0,.1)', borderWidth: 1,
+                        padding: { x: 14, y: 10 }, cornerRadius: 8,
+                        displayColors: true, usePointStyle: true,
+                        callbacks: {
+                            label(ctx) {
+                                let l = ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1);
+                                l += ctx.datasetIndex === 0 ? ' °C' : ' %';
+                                return l;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        border: { display: false }, grid: { display: false },
+                        ticks: { color: '#aaa', font: { size: 11, family: "'Inter',sans-serif" }, maxRotation: 0, autoSkipPadding: 24, padding: 6 }
+                    },
+                    y: {
+                        beginAtZero: false, border: { display: false },
+                        grid: { display: true, color: 'rgba(0,0,0,.06)', lineWidth: 1 },
+                        ticks: { color: '#aaa', font: { size: 11, family: "'Inter',sans-serif" }, padding: 12, maxTicksLimit: 5 }
+                    }
+                },
+                layout: { padding: { top: 8, right: 8, bottom: 0, left: 0 } }
+            }
+        });
+
+        // ── State ─────────────────────────────────────────────────
+        let activeRange = '25m';
+        let activeDataset = 'both'; // 'both' | 'suhu' | 'kelembaban'
+        const rangeLabels = { 
+            '1m': '1 Menit Terakhir', 
+            '5m': '5 Menit Terakhir', 
+            '25m': '25 Menit Terakhir', 
+            '1h': '1 Jam Terakhir', 
+            '1d': '1 Hari Terakhir' 
+        };
+
+        // ── Dataset Visibility ────────────────────────────────────
+        function applyDatasetVisibility() {
+            sensorChart.data.datasets[0].hidden = (activeDataset === 'kelembaban');
+            sensorChart.data.datasets[1].hidden = (activeDataset === 'suhu');
+            sensorChart.update('none');
+        }
+
+        // ── Dataset Toggle Buttons Interaction ────────────────────
+        const datasetColors = { both: '#6dab28', suhu: '#6dab28', kelembaban: '#42a5f5' };
+
+        function refreshDatasetButtons() {
+            document.querySelectorAll('.cdb').forEach(btn => {
+                const ds = btn.dataset.dataset;
+                const isActive = ds === activeDataset;
+                const color = datasetColors[ds];
+                btn.style.borderColor   = isActive ? color : '#e0e0e0';
+                btn.style.color         = isActive ? color : '#555';
+                btn.style.boxShadow     = isActive ? `0 0 0 3px ${color}1a` : 'none';
+                btn.style.background    = '#fff';
+            });
+        }
+
+        document.querySelectorAll('.cdb').forEach(btn => {
+            btn.addEventListener('click', function () {
+                activeDataset = this.dataset.dataset;
+                refreshDatasetButtons();
+                applyDatasetVisibility();
+            });
+            btn.addEventListener('mouseenter', function () {
+                if (this.dataset.dataset !== activeDataset) this.style.borderColor = '#bbb';
+            });
+            btn.addEventListener('mouseleave', function () {
+                if (this.dataset.dataset !== activeDataset) this.style.borderColor = '#e0e0e0';
+            });
+        });
+
+        // ── Device item layout updates ────────────────────────────
+        function updateDeviceItem(device, controls, manualControls, pumpStatus, lampStatus) {
+            const isActive = !!controls[device];
+            const isManual = !!manualControls[device];
+            
+            const badge = document.getElementById(`badge-${device}`);
+            const iconContainer = document.getElementById(`icon-container-${device}`);
+            const icon = document.getElementById(`icon-${device}`);
+            const desc = document.getElementById(`status-desc-${device}`);
+            
+            if (!badge || !iconContainer || !icon || !desc) return;
+
+            const isLamp = device.startsWith('lampu');
+            
+            if (isActive) {
+                badge.textContent = "AKTIF";
+                badge.className = "badge bg-success px-2.5 py-1 text-[10px] rounded-full";
+                iconContainer.className = "device-icon-container text-xl flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm";
+                
+                if (isLamp) {
+                    icon.className = "bi bi-lightbulb-fill animate-pulse";
+                    const isScheduledLamp = !!(lampStatus.active_devices && lampStatus.active_devices[device]);
+                    if (isScheduledLamp && isManual) {
+                        desc.textContent = "Aktif (Manual + Jadwal)";
+                    } else if (isScheduledLamp) {
+                        desc.textContent = "Aktif (Jadwal)";
+                    } else {
+                        desc.textContent = "Aktif (Manual)";
+                    }
+                } else {
+                    icon.className = "bi bi-droplet-fill text-blue-500 animate-bounce";
+                    desc.textContent = `Penyiraman aktif (${pumpStatus.source})`;
+                }
+            } else {
+                badge.textContent = "MATI";
+                badge.className = "badge bg-secondary px-2.5 py-1 text-[10px] rounded-full bg-gray-200 text-gray-500";
+                iconContainer.className = "device-icon-container text-xl flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 border border-gray-200/60 text-gray-400";
+                
+                if (isLamp) {
+                    icon.className = "bi bi-lightbulb";
+                } else {
+                    icon.className = "bi bi-droplet";
+                }
+                desc.textContent = "Nonaktif";
+            }
+        }
+
+        // ── AJAX Polling ──────────────────────────────────────────
+        async function fetchMonitoringData() {
+            try {
+                const res = await fetch(`{{ route('public.dashboard.data', [], false) }}?sensor_range=${activeRange}`);
+                const data = await res.json();
+
+                // 1. Update Metrics Cards (Suhu & Kelembaban)
+                if (data.latest) {
+                    document.getElementById('live-suhu').textContent = data.latest.suhu !== null ? Number(data.latest.suhu).toFixed(1) : '--';
+                    document.getElementById('live-kelembaban').textContent = data.latest.kelembaban !== null ? Number(data.latest.kelembaban).toFixed(1) : '--';
+                    
+                    const formattedTime = data.latest.label ?? 'Belum ada data';
+                    document.getElementById('latest-suhu-time').textContent = "Terakhir: " + formattedTime;
+                    document.getElementById('latest-kelembaban-time').textContent = "Terakhir: " + formattedTime;
+                }
+
+                // 2. Update Device Status List & Pompa Card
+                if (data.controls && data.manual_controls && data.pump && data.lamp) {
+                    updateDeviceItem('lampu1', data.controls, data.manual_controls, data.pump, data.lamp);
+                    updateDeviceItem('lampu2', data.controls, data.manual_controls, data.pump, data.lamp);
+                    updateDeviceItem('lampu3', data.controls, data.manual_controls, data.pump, data.lamp);
+                    updateDeviceItem('pompa', data.controls, data.manual_controls, data.pump, data.lamp);
+
+                    // Update Pump Metric Card
+                    const pumpMetricValue = document.getElementById('pumpMetricValue');
+                    const pumpMetricNote = document.getElementById('pumpMetricNote');
+                    
+                    if (data.pump.effective_active) {
+                        pumpMetricValue.textContent = data.pump.source;
+                        pumpMetricValue.className = "metric-value compact text-success font-bold text-base";
+                    } else {
+                        pumpMetricValue.textContent = "OFF";
+                        pumpMetricValue.className = "metric-value compact text-gray-500 font-bold text-base";
+                    }
+
+                    if (data.pump.manual_active) {
+                        pumpMetricNote.textContent = "Tombol manual aktif";
+                    } else if (data.pump.automatic_active) {
+                        pumpMetricNote.textContent = `Jadwal aktif: ${data.pump.active_schedule?.name ?? 'Jadwal'}`;
+                    } else {
+                        pumpMetricNote.textContent = "Menunggu jadwal/manual";
+                    }
+
+                    // Update Lamp Metric Card
+                    const lampMetricValue = document.getElementById('lampMetricValue');
+                    const lampMetricNote = document.getElementById('lampMetricNote');
+                    
+                    if (lampMetricValue && lampMetricNote) {
+                        const activeLampsCount = (data.controls['lampu1'] ? 1 : 0) + 
+                                                 (data.controls['lampu2'] ? 1 : 0) + 
+                                                 (data.controls['lampu3'] ? 1 : 0);
+                        
+                        if (activeLampsCount > 0) {
+                            if (activeLampsCount === 3) {
+                                lampMetricValue.textContent = "SEMUA AKTIF";
+                            } else {
+                                lampMetricValue.textContent = `${activeLampsCount} AKTIF`;
+                            }
+                            lampMetricValue.className = "metric-value compact text-success font-bold text-base mb-1";
+                        } else {
+                            lampMetricValue.textContent = "OFF";
+                            lampMetricValue.className = "metric-value compact text-gray-500 font-bold text-base mb-1";
+                        }
+
+                        // Update inline badges
+                        const lampNames = ['lampu1', 'lampu2', 'lampu3'];
+                        lampNames.forEach(device => {
+                            const badgeEl = document.getElementById(`lampBadge-${device}`);
+                            if (badgeEl) {
+                                const isOn = !!data.controls[device];
+                                if (isOn) {
+                                    badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/50";
+                                } else {
+                                    badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400 border border-gray-200/50";
+                                }
+                            }
+                        });
+
+                        const hasManualLamp = data.manual_controls['lampu1'] || data.manual_controls['lampu2'] || data.manual_controls['lampu3'];
+                        if (hasManualLamp && data.lamp.automatic_active) {
+                            lampMetricNote.textContent = "Manual + Jadwal aktif";
+                        } else if (hasManualLamp) {
+                            lampMetricNote.textContent = "Tombol manual aktif";
+                        } else if (data.lamp.automatic_active) {
+                            const scheduleNames = data.lamp.active_schedules.map(s => s.name).join(', ');
+                            lampMetricNote.textContent = `Jadwal aktif: ${scheduleNames || 'Jadwal'}`;
+                        } else {
+                            lampMetricNote.textContent = "Menunggu jadwal/manual";
+                        }
+                    }
+                }
+
+                // 3. Update Chart readings
+                if (data.readings) {
+                    sensorChart.data.labels = data.readings.map(r => r.label);
+                    sensorChart.data.datasets[0].data = data.readings.map(r => r.suhu);
+                    sensorChart.data.datasets[1].data = data.readings.map(r => r.kelembaban);
+                    applyDatasetVisibility();
+                }
+
+                // Update API Connection Badge
+                const apiStatus = document.getElementById('apiStatus');
+                if (data.device_connected) {
+                    apiStatus.textContent = "TERHUBUNG";
+                    apiStatus.className = "metric-value compact text-emerald-600 font-bold text-base";
+                } else {
+                    apiStatus.textContent = "TERPUTUS";
+                    apiStatus.className = "metric-value compact text-rose-600 font-bold text-base";
+                }
+
+                if (data.device_last_seen) {
+                    document.getElementById('lastRefresh').textContent = "Terakhir aktif: " + data.device_last_seen;
+                } else {
+                    document.getElementById('lastRefresh').textContent = "Belum ada koneksi dari alat";
+                }
+
+            } catch (error) {
+                console.error('Gagal memuat data monitoring:', error);
+                
+                const apiStatus = document.getElementById('apiStatus');
+                apiStatus.textContent = "ERROR";
+                apiStatus.className = "metric-value compact text-rose-600 font-bold text-base";
+                document.getElementById('lastRefresh').textContent = "Koneksi terputus";
+            }
+        }
+
+        // ── Range Switch Buttons Interaction ──────────────────────
+        function refreshRangeButtons() {
+            document.querySelectorAll('.crb').forEach(btn => {
+                if (btn.dataset.range === activeRange) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        document.querySelectorAll('.crb').forEach(btn => {
+            btn.addEventListener('click', function () {
+                activeRange = this.dataset.range;
+                document.getElementById('sensorRangeLabel').textContent = rangeLabels[activeRange];
+                refreshRangeButtons();
+                fetchMonitoringData();
+            });
+        });
+
+        // ── Initial load & intervals ──────────────────────────────
+        refreshDatasetButtons();
+        refreshRangeButtons();
+        fetchMonitoringData();
+        
+        // Poll data every 5 seconds
+        setInterval(fetchMonitoringData, 5000);
     </script>
+
+    @if(config('firebase.project_id'))
+    <!-- Firebase Cloud Messaging Setup -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
+    <script>
+        window.firebaseConfig = {
+            apiKey: "{{ config('firebase.api_key') }}",
+            authDomain: "{{ config('firebase.auth_domain') }}",
+            projectId: "{{ config('firebase.project_id') }}",
+            storageBucket: "{{ config('firebase.storage_bucket') }}",
+            messagingSenderId: "{{ config('firebase.messaging_sender_id') }}",
+            appId: "{{ config('firebase.app_id') }}"
+        };
+        window.firebaseVapidKey = "{{ config('firebase.vapid_key') }}";
+
+        if (window.firebaseConfig.apiKey) {
+            firebase.initializeApp(window.firebaseConfig);
+            const messaging = firebase.messaging();
+
+            if ('serviceWorker' in navigator) {
+                const params = new URLSearchParams(window.firebaseConfig).toString();
+                navigator.serviceWorker.register('/firebase-messaging-sw.js?' + params)
+                    .then((registration) => {
+                        console.log('FCM Service Worker registered:', registration);
+                        requestFcmToken(registration);
+                    })
+                    .catch((err) => {
+                        console.error('FCM Service Worker registration failed:', err);
+                    });
+            }
+
+            function requestFcmToken(registration) {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                        messaging.getToken({ 
+                            vapidKey: window.firebaseVapidKey,
+                            serviceWorkerRegistration: registration
+                        }).then((currentToken) => {
+                            if (currentToken) {
+                                console.log('FCM Token:', currentToken);
+                                fetch('/api/fcm/register', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ token: currentToken })
+                                })
+                                .then(res => res.json())
+                                .then(data => console.log('FCM Token registered to server:', data))
+                                .catch(err => console.error('Error registering FCM token:', err));
+                            } else {
+                                console.warn('No registration token available.');
+                            }
+                        }).catch((err) => {
+                            console.error('An error occurred while retrieving token:', err);
+                        });
+                    } else {
+                        console.warn('Notification permission not granted.');
+                    }
+                });
+            }
+
+            // Foreground Message Handler
+            messaging.onMessage((payload) => {
+                console.log('Foreground message received:', payload);
+                if (Notification.permission === 'granted') {
+                    new Notification(payload.notification.title, {
+                        body: payload.notification.body,
+                        icon: payload.notification.icon || '/uhn_logo.png'
+                    });
+                }
+            });
+        }
+    </script>
+    @endif
 </body>
 </html>

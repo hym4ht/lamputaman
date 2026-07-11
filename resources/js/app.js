@@ -27,8 +27,27 @@ if (dashboardPage) {
     const maxVisibleReadings = 80;
     let selectedSensorRange = defaultSensorRange;
 
-    const setConnection = (online) => {
-        setText('apiStatus', online ? 'Terhubung' : 'Gagal');
+    const setConnection = (online, deviceConnected = false, deviceLastSeen = null) => {
+        const apiStatus = document.getElementById('apiStatus');
+        if (!apiStatus) return;
+
+        if (!online) {
+            apiStatus.textContent = 'GAGAL';
+            apiStatus.className = 'metric-value compact text-danger';
+            apiStatus.style.fontWeight = '700';
+            setText('lastRefresh', 'Koneksi ke server gagal');
+            return;
+        }
+
+        apiStatus.textContent = deviceConnected ? 'TERHUBUNG' : 'TERPUTUS';
+        apiStatus.className = `metric-value compact ${deviceConnected ? 'text-success' : 'text-danger'}`;
+        apiStatus.style.fontWeight = '700';
+
+        if (deviceLastSeen) {
+            setText('lastRefresh', `Terakhir aktif: ${deviceLastSeen}`);
+        } else {
+            setText('lastRefresh', 'Belum ada koneksi dari alat');
+        }
     };
 
     const setText = (id, value) => {
@@ -275,8 +294,7 @@ if (dashboardPage) {
             const payload = await response.json();
             renderLatest(payload.latest);
             renderControls(payload.controls, payload.manual_controls, payload.pump, payload.lamp);
-            setConnection(true);
-            setText('lastRefresh', `Refresh ${new Date().toLocaleTimeString('id-ID')}`);
+            setConnection(true, payload.device_connected, payload.device_last_seen);
         } catch (error) {
             setConnection(false);
         }
@@ -316,7 +334,7 @@ if (dashboardPage) {
 
                 const payload = await response.json();
                 renderControls(payload.controls, payload.manual_controls, payload.pump, payload.lamp);
-                setConnection(true);
+                setConnection(true, payload.device_connected, payload.device_last_seen);
             } catch (error) {
                 input.checked = previousValue;
                 setConnection(false);
@@ -353,7 +371,7 @@ if (dashboardPage) {
 
                 const payload = await response.json();
                 renderControls(payload.controls, payload.manual_controls, payload.pump, payload.lamp);
-                setConnection(true);
+                setConnection(true, payload.device_connected, payload.device_last_seen);
             } catch (error) {
                 setConnection(false);
             } finally {

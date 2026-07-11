@@ -40,8 +40,16 @@
                     <i class="bi bi-router"></i>
                 </div>
             </div>
-            <div class="metric-value compact" id="apiStatus">Siap</div>
-            <p class="metric-note" id="lastRefresh">Data akan diperbarui otomatis</p>
+            <div class="metric-value compact {{ $deviceConnected ? 'text-success' : 'text-danger' }}" id="apiStatus" style="font-weight: 700;">
+                {{ $deviceConnected ? 'TERHUBUNG' : 'TERPUTUS' }}
+            </div>
+            <p class="metric-note" id="lastRefresh">
+                @if ($lastSeen)
+                    Terakhir aktif: {{ $lastSeen->timezone(config('app.timezone'))->format('H:i:s') }}
+                @else
+                    Belum ada koneksi dari alat
+                @endif
+            </p>
         </div>
 
         <div class="metric-card pump">

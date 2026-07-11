@@ -44,37 +44,7 @@
 </head>
 <body class="dashboard-page min-h-screen pb-16">
 
-    <header class="border-b border-[#e8e8e8] bg-white/85 backdrop-blur-md sticky top-0 z-50 px-3 sm:px-4 py-2.5 sm:py-3 mb-6 sm:mb-8 shadow-sm">
-        <div class="max-w-[1200px] mx-auto flex justify-between items-center gap-3 px-5">
-            <div class="brand flex items-center gap-2 sm:gap-3 min-w-0">
-                <div class="brand-icon shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded bg-gradient-to-br from-emerald-600 to-teal-500 text-white flex items-center justify-center text-base sm:text-lg shadow-sm">
-                    <i class="bi bi-flower1"></i>
-                </div>
-                <div class="brand-text min-w-0">
-                    <h1 class="text-sm font-bold text-gray-800 leading-tight truncate">Lampu Taman</h1>
-                    <p class="text-[11px] text-gray-500 leading-tight truncate">Garden Monitoring IoT</p>
-                </div>
-            </div>
-
-            <div class="shrink-0">
-                @auth
-                    <a href="{{ route('dashboard') }}"
-                       class="btn-logout inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 border border-emerald-200 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/60 active:bg-emerald-100 rounded-lg text-[11px] sm:text-xs font-semibold no-underline transition-colors">
-                        <i class="bi bi-grid-1x2"></i>
-                        <span class="hidden sm:inline">Ke Dashboard</span>
-                        <span class="sm:hidden">Dashboard</span>
-                    </a>
-                @else
-                    <a href="{{ route('login') }}"
-                       class="btn-logout inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 active:bg-gray-100 rounded-lg text-[11px] sm:text-xs font-semibold no-underline transition-colors">
-                        <i class="bi bi-box-arrow-in-right"></i>
-                        <span class="hidden sm:inline">Login Admin</span>
-                        <span class="sm:hidden">Login</span>
-                    </a>
-                @endauth
-            </div>
-        </div>
-    </header>
+    <x-navbar />
 
     <div class="public-layout">
         
@@ -578,9 +548,19 @@
 
                 // Update API Connection Badge
                 const apiStatus = document.getElementById('apiStatus');
-                apiStatus.textContent = "ONLINE";
-                apiStatus.className = "metric-value compact text-emerald-600 font-bold text-base";
-                document.getElementById('lastRefresh').textContent = "Pembaruan: " + new Date().toLocaleTimeString('id-ID');
+                if (data.device_connected) {
+                    apiStatus.textContent = "TERHUBUNG";
+                    apiStatus.className = "metric-value compact text-emerald-600 font-bold text-base";
+                } else {
+                    apiStatus.textContent = "TERPUTUS";
+                    apiStatus.className = "metric-value compact text-rose-600 font-bold text-base";
+                }
+
+                if (data.device_last_seen) {
+                    document.getElementById('lastRefresh').textContent = "Terakhir aktif: " + data.device_last_seen;
+                } else {
+                    document.getElementById('lastRefresh').textContent = "Belum ada koneksi dari alat";
+                }
 
             } catch (error) {
                 console.error('Gagal memuat data monitoring:', error);

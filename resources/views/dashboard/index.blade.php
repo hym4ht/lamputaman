@@ -35,6 +35,8 @@
         ];
     @endphp
 
+<x-navbar :is-dashboard="true" />
+
 <div class="app-container"
          data-dashboard-url="/dashboard/data"
          data-toggle-base="/dashboard/control"
@@ -58,14 +60,8 @@
         </main>
     </div>
 
-    <!-- Mobile Menu Toggle -->
-    <button class="menu-toggle" id="menuToggle">
-        <i class="bi bi-list"></i>
-    </button>
-
     <!-- Sidebar Backdrop -->
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-
 
     
 </body>

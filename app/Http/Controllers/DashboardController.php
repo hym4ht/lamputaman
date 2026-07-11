@@ -40,6 +40,9 @@ class DashboardController extends Controller
             ? $screen
             : 'ringkasan';
 
+        $latest = SensorData::query()->latest('created_at')->first();
+        $connection = $this->deviceConnectionStatus($latest);
+
         return view('dashboard.index', [
             'activeScreen' => $screen,
             'controls' => DeviceControl::snapshot(),
@@ -48,17 +51,22 @@ class DashboardController extends Controller
             'lampDevices' => DeviceControl::LAMP_DEVICES,
             'dayLabels' => PumpSchedule::DAY_LABELS,
             'lampTargets' => LampSchedule::TARGET_LABELS,
-            'latest' => SensorData::query()->latest('created_at')->first(),
+            'latest' => $latest,
             'pumpSchedules' => PumpSchedule::query()->orderBy('start_time')->get(),
             'pumpStatus' => $this->pumpStatus(),
             'lampSchedules' => LampSchedule::query()->orderBy('start_time')->get(),
             'lampStatus' => LampSchedule::status(),
+            'deviceConnected' => $connection['device_connected'],
+            'lastSeen' => $connection['last_seen_object'],
         ]);
     }
 
     public function data(Request $request): JsonResponse
     {
+        \App\Services\DeviceConnectionDetector::check();
+
         $sensorRange = $this->sensorRange($request);
+        $connection = $this->deviceConnectionStatus();
 
         return response()->json([
             'latest' => $this->latestReading(),
@@ -72,6 +80,8 @@ class DashboardController extends Controller
             'pump' => $this->pumpStatus(),
             'lamp' => LampSchedule::status(),
             'updated_at' => now()->toIso8601String(),
+            'device_connected' => $connection['device_connected'],
+            'device_last_seen' => $connection['device_last_seen'],
         ]);
     }
 
@@ -91,6 +101,8 @@ class DashboardController extends Controller
             'status' => (bool) $validated['status'],
         ])->save();
 
+        $connection = $this->deviceConnectionStatus();
+
         return response()->json([
             'device' => $device,
             'label' => DeviceControl::DEVICES[$device],
@@ -99,6 +111,8 @@ class DashboardController extends Controller
             'manual_controls' => DeviceControl::manualSnapshot(),
             'pump' => $this->pumpStatus(),
             'lamp' => LampSchedule::status(),
+            'device_connected' => $connection['device_connected'],
+            'device_last_seen' => $connection['device_last_seen'],
         ]);
     }
 
@@ -118,11 +132,15 @@ class DashboardController extends Controller
             ])->save();
         }
 
+        $connection = $this->deviceConnectionStatus();
+
         return response()->json([
             'controls' => DeviceControl::snapshot(),
             'manual_controls' => DeviceControl::manualSnapshot(),
             'pump' => $this->pumpStatus(),
             'lamp' => LampSchedule::status(),
+            'device_connected' => $connection['device_connected'],
+            'device_last_seen' => $connection['device_last_seen'],
         ]);
     }
 
@@ -341,5 +359,34 @@ class DashboardController extends Controller
         }
 
         return $end - $start;
+    }
+
+    /**
+     * Get the device connection status by checking cache and fallback to latest sensor data.
+     *
+     * @return array{device_connected: bool, device_last_seen: ?string, last_seen_object: ?\Illuminate\Support\Carbon}
+     */
+    private function deviceConnectionStatus(?SensorData $latest = null): array
+    {
+        $lastSeen = \Illuminate\Support\Facades\Cache::get('device_last_seen');
+        if (! $lastSeen) {
+            $latest = $latest ?: SensorData::query()->latest('created_at')->first();
+            $lastSeen = $latest?->created_at;
+        } else {
+            // Ensure we have a Carbon instance
+            $lastSeen = \Illuminate\Support\Carbon::parse($lastSeen);
+        }
+
+        $deviceConnected = false;
+        if ($lastSeen) {
+            $diff = now()->timestamp - $lastSeen->timestamp;
+            $deviceConnected = ($diff >= 0 && $diff <= 30);
+        }
+
+        return [
+            'device_connected' => $deviceConnected,
+            'device_last_seen' => $lastSeen ? $lastSeen->timezone(config('app.timezone'))->format('H:i:s') : null,
+            'last_seen_object' => $lastSeen,
+        ];
     }
 }

@@ -16,8 +16,8 @@ class DeviceConnectionDetector
         $isCurrentlyConnected = false;
 
         if ($lastSeen) {
-            // If seen within 130 seconds, we consider it connected
-            $isCurrentlyConnected = Carbon::parse($lastSeen)->diffInSeconds(now()) < 130;
+            // If seen within the timeout limit, we consider it connected
+            $isCurrentlyConnected = Carbon::parse($lastSeen)->diffInSeconds(now()) < config('firebase.device_connection_timeout', 10);
         }
 
         $lastConnectionStatus = Cache::get('device_connection_status_last');

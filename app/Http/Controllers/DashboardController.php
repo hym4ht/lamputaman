@@ -383,7 +383,7 @@ class DashboardController extends Controller
         $deviceConnected = false;
         if ($lastSeen) {
             $diff = now()->timestamp - $lastSeen->timestamp;
-            $deviceConnected = ($diff >= 0 && $diff <= 30);
+            $deviceConnected = ($diff >= 0 && $diff <= config('firebase.device_connection_timeout', 10));
         }
 
         return [

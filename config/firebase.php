@@ -13,4 +13,7 @@ return [
     'messaging_sender_id' => env('FIREBASE_MESSAGING_SENDER_ID'),
     'app_id' => env('FIREBASE_APP_ID'),
     'vapid_key' => env('FIREBASE_VAPID_KEY'),
+
+    // Timeout in seconds to determine if device is disconnected
+    'device_connection_timeout' => (int) env('DEVICE_CONNECTION_TIMEOUT', 10),
 ];

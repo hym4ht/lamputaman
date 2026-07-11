@@ -625,18 +625,20 @@
                 navigator.serviceWorker.register('/firebase-messaging-sw.js?' + params)
                     .then((registration) => {
                         console.log('FCM Service Worker registered:', registration);
-                        messaging.useServiceWorker(registration);
-                        requestFcmToken();
+                        requestFcmToken(registration);
                     })
                     .catch((err) => {
                         console.error('FCM Service Worker registration failed:', err);
                     });
             }
 
-            function requestFcmToken() {
+            function requestFcmToken(registration) {
                 Notification.requestPermission().then((permission) => {
                     if (permission === 'granted') {
-                        messaging.getToken({ vapidKey: window.firebaseVapidKey }).then((currentToken) => {
+                        messaging.getToken({ 
+                            vapidKey: window.firebaseVapidKey,
+                            serviceWorkerRegistration: registration
+                        }).then((currentToken) => {
                             if (currentToken) {
                                 console.log('FCM Token:', currentToken);
                                 fetch('/api/fcm/register', {

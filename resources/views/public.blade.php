@@ -178,6 +178,21 @@
                 <div class="metric-value compact text-yellow-600" id="apiStatus">Memuat</div>
                 <p class="metric-note text-xs text-gray-400 mt-1" id="lastRefresh">Memuat data terbaru...</p>
             </div>
+
+            {{-- === KARTU STATUS AIR (Guest) === --}}
+            <div class="metric-card water">
+                <div class="metric-header">
+                    <div class="metric-label">Status Air</div>
+                    <div class="metric-icon"><i class="bi bi-water"></i></div>
+                </div>
+                <div class="metric-value compact text-gray-400" id="waterStatusValue" style="font-weight: 700; font-size: 1.35rem;">--</div>
+                <div style="margin-top: 10px;">
+                    <div id="waterLevelBarWrap" style="background: #f0f4ff; border-radius: 8px; height: 10px; overflow: hidden; width: 100%;">
+                        <div id="waterLevelBar" style="height:100%; width:0%; border-radius:8px; background:#d1d5db; transition: width 0.6s ease, background 0.6s ease;"></div>
+                    </div>
+                    <p class="metric-note text-xs text-gray-400 mt-1.5" id="waterStatusNote">Menunggu data ultrasonic...</p>
+                </div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -626,6 +641,36 @@
                     document.getElementById('lastRefresh').textContent = "Terakhir aktif: " + data.device_last_seen;
                 } else {
                     document.getElementById('lastRefresh').textContent = "Belum ada koneksi dari alat";
+                }
+
+                // 5. Update Status Air card
+                if (data.latest) {
+                    const waterVal  = document.getElementById('waterStatusValue');
+                    const waterNote = document.getElementById('waterStatusNote');
+                    const waterBar  = document.getElementById('waterLevelBar');
+
+                    const labelMap     = { 'FULL': 'Tinggi', 'SEDANG': 'Sedang', 'HABIS': 'Rendah', 'TIDAK TERBACA': 'Tidak Terbaca' };
+                    const colorMap     = { 'FULL': '#3b82f6', 'SEDANG': '#f59e0b', 'HABIS': '#ef4444' };
+                    const widthMap     = { 'FULL': '90%', 'SEDANG': '50%', 'HABIS': '15%' };
+                    const textColorMap = { 'FULL': '#1d4ed8', 'SEDANG': '#b45309', 'HABIS': '#dc2626' };
+
+                    const raw = data.latest.status_air || null;
+                    if (waterVal) {
+                        waterVal.textContent = raw ? (labelMap[raw] || raw) : '--';
+                        waterVal.style.color = raw ? (textColorMap[raw] || '#9ca3af') : '#9ca3af';
+                    }
+                    if (waterNote) {
+                        waterNote.textContent = data.latest.jarak_air
+                            ? `Jarak sensor: ${Number(data.latest.jarak_air).toFixed(1)} cm`
+                            : 'Menunggu data ultrasonic';
+                    }
+                    if (waterBar && raw) {
+                        waterBar.style.width      = widthMap[raw] || '0%';
+                        waterBar.style.background = colorMap[raw] || '#d1d5db';
+                    } else if (waterBar) {
+                        waterBar.style.width      = '0%';
+                        waterBar.style.background = '#d1d5db';
+                    }
                 }
 
             } catch (error) {

@@ -13,6 +13,8 @@ class SensorData extends Model
     protected $fillable = [
         'suhu',
         'kelembaban',
+        'jarak_air',
+        'status_air',
     ];
 
     protected function casts(): array
@@ -20,6 +22,7 @@ class SensorData extends Model
         return [
             'suhu' => 'float',
             'kelembaban' => 'float',
+            'jarak_air' => 'float',
             'created_at' => 'datetime',
         ];
     }

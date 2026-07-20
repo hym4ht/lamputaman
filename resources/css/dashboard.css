@@ -340,6 +340,20 @@ body {
     color: #ca8a04;
 }
 
+.metric-card.water .metric-icon {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.water-high { color: #1d4ed8; }
+.water-mid  { color: #b45309; }
+.water-low  { color: #dc2626; }
+.water-unknown { color: #9ca3af; }
+
+.text-success { color: var(--color-success); }
+.text-danger  { color: var(--color-danger); }
+
+
 .metric-value {
     font-size: 36px;
     font-weight: 700;

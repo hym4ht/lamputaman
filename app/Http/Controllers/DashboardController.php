@@ -334,11 +334,24 @@ class DashboardController extends Controller
             return null;
         }
 
+        // Map IoT raw status to display labels (FULL → Tinggi, SEDANG → Sedang, HABIS → Rendah)
+        $statusAirRaw = $latest->status_air ? strtoupper($latest->status_air) : null;
+        $statusAirLabel = match ($statusAirRaw) {
+            'FULL'        => 'Tinggi',
+            'SEDANG'      => 'Sedang',
+            'HABIS'       => 'Rendah',
+            'TIDAK TERBACA' => 'Tidak Terbaca',
+            default       => null,
+        };
+
         return [
-            'suhu' => round($latest->suhu, 1),
-            'kelembaban' => round($latest->kelembaban, 1),
-            'created_at' => $latest->created_at?->toIso8601String(),
-            'label' => $latest->created_at?->timezone(config('app.timezone'))->format('d M Y H:i:s'),
+            'suhu'           => round($latest->suhu, 1),
+            'kelembaban'     => round($latest->kelembaban, 1),
+            'jarak_air'      => $latest->jarak_air ? round($latest->jarak_air, 1) : null,
+            'status_air'     => $statusAirRaw,
+            'status_air_label' => $statusAirLabel,
+            'created_at'     => $latest->created_at?->toIso8601String(),
+            'label'          => $latest->created_at?->timezone(config('app.timezone'))->format('d M Y H:i:s'),
         ];
     }
 

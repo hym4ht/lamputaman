@@ -31,13 +31,19 @@ class IotController extends Controller
         Cache::forget('fcm_notify_sensor_broken');
 
         $validated = $request->validate([
-            'suhu' => ['required', 'numeric'],
-            'kelembaban' => ['required', 'numeric', 'between:0,100'],
+            'suhu'        => ['required', 'numeric'],
+            'kelembaban'  => ['required', 'numeric', 'between:0,100'],
+            'jarak_air'   => ['nullable', 'numeric', 'min:0'],
+            'status_air'  => ['nullable', 'string', 'max:20'],
         ]);
 
         $sensorData = SensorData::query()->create([
-            'suhu' => $validated['suhu'],
+            'suhu'       => $validated['suhu'],
             'kelembaban' => $validated['kelembaban'],
+            'jarak_air'  => $validated['jarak_air'] ?? null,
+            'status_air' => isset($validated['status_air'])
+                                ? strtoupper($validated['status_air'])
+                                : null,
         ]);
 
         // Check sensor thresholds and notify if values are extreme

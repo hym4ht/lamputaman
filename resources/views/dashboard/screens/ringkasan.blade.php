@@ -79,6 +79,54 @@
                 <span id="smartWateringBadgeText" style="font-size: 11px; font-weight: 600; color: #15803d;">Smart Watering Aktif</span>
             </div>
         </div>
+
+        {{-- === STATUS AIR CARD === --}}
+        @php
+            $statusAirRaw   = $latest?->status_air ? strtoupper($latest->status_air) : null;
+            $statusAirLabel = match($statusAirRaw) {
+                'FULL'          => 'Tinggi',
+                'SEDANG'        => 'Sedang',
+                'HABIS'         => 'Rendah',
+                'TIDAK TERBACA' => 'Tidak Terbaca',
+                default         => null,
+            };
+            $waterColorClass = match($statusAirRaw) {
+                'FULL'   => 'water-high',
+                'SEDANG' => 'water-mid',
+                'HABIS'  => 'water-low',
+                default  => 'water-unknown',
+            };
+        @endphp
+        <div class="metric-card water">
+            <div class="metric-header">
+                <div class="metric-label">Status Air</div>
+                <div class="metric-icon">
+                    <i class="bi bi-water"></i>
+                </div>
+            </div>
+            <div class="metric-value compact {{ $waterColorClass }}" id="waterStatusValue" style="font-weight: 700; font-size: 1.35rem;">
+                {{ $statusAirLabel ?? '--' }}
+            </div>
+            <div style="margin-top: 10px;">
+                {{-- Visual water level bar --}}
+                <div id="waterLevelBarWrap" style="background: #f0f4ff; border-radius: 8px; height: 10px; overflow: hidden; width: 100%;">
+                    <div id="waterLevelBar" style="
+                        height: 100%; border-radius: 8px; transition: width 0.6s ease, background 0.6s ease;
+                        @if($statusAirRaw === 'FULL')   width: 90%; background: #3b82f6;
+                        @elseif($statusAirRaw === 'SEDANG') width: 50%; background: #f59e0b;
+                        @elseif($statusAirRaw === 'HABIS')  width: 15%; background: #ef4444;
+                        @else width: 0%; background: #d1d5db; @endif
+                    "></div>
+                </div>
+                <p class="metric-note" id="waterStatusNote" style="margin-top: 6px;">
+                    @if($latest?->jarak_air)
+                        Jarak sensor: {{ number_format($latest->jarak_air, 1) }} cm
+                    @else
+                        Menunggu data ultrasonic
+                    @endif
+                </p>
+            </div>
+        </div>
     </div>
 
 
@@ -519,9 +567,37 @@
                 // Update Smart Watering badge visibility
                 updateSmartWateringBadge(!!data.pump.smart_watering_active);
             }
+            // Update water status card
+            if (data.latest) {
+                const waterVal  = document.getElementById('waterStatusValue');
+                const waterNote = document.getElementById('waterStatusNote');
+                const waterBar  = document.getElementById('waterLevelBar');
+
+                const labelMap = { 'FULL': 'Tinggi', 'SEDANG': 'Sedang', 'HABIS': 'Rendah', 'TIDAK TERBACA': 'Tidak Terbaca' };
+                const colorMap = { 'FULL': '#3b82f6', 'SEDANG': '#f59e0b', 'HABIS': '#ef4444' };
+                const widthMap = { 'FULL': '90%', 'SEDANG': '50%', 'HABIS': '15%' };
+                const textColorMap = { 'FULL': '#1d4ed8', 'SEDANG': '#b45309', 'HABIS': '#dc2626' };
+
+                const raw = data.latest.status_air || null;
+                if (waterVal) {
+                    waterVal.textContent = raw ? (labelMap[raw] || raw) : '--';
+                    waterVal.style.color = raw ? (textColorMap[raw] || '#888') : '#aaa';
+                }
+                if (waterNote) {
+                    waterNote.textContent = data.latest.jarak_air
+                        ? `Jarak sensor: ${Number(data.latest.jarak_air).toFixed(1)} cm`
+                        : 'Menunggu data ultrasonic';
+                }
+                if (waterBar && raw) {
+                    waterBar.style.width      = widthMap[raw] || '0%';
+                    waterBar.style.background = colorMap[raw] || '#d1d5db';
+                } else if (waterBar) {
+                    waterBar.style.width      = '0%';
+                    waterBar.style.background = '#d1d5db';
+                }
+            }
 
 
-            // Update devices status list (Status Perangkat list)
             if (data.controls && data.manual_controls && data.lamp) {
                 const deviceNames = ['lampu1', 'lampu2', 'lampu3', 'pompa'];
                 deviceNames.forEach(device => {

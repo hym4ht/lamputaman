@@ -26,6 +26,15 @@
             @php
                 $isLamp = array_key_exists($device, $lampDevices);
                 $isScheduledLamp = $isLamp && (bool) ($lampStatus['active_devices'][$device] ?? false);
+                $isPompa = $device === 'pompa';
+                // Pompa: toggle efektif (manual OR smart watering OR jadwal)
+                $toggleChecked = $isPompa
+                    ? (bool) ($controls[$device] ?? false)
+                    : (bool) ($manualControls[$device] ?? false);
+                // Nonaktifkan toggle pompa saat dikontrol otomatis
+                $isAutoControlled = $isPompa
+                    && ($controls[$device] ?? false)
+                    && !($manualControls[$device] ?? false);
             @endphp
             <div class="control-item">
                 <div class="control-info">
@@ -41,16 +50,19 @@
                     </div>
                 </div>
 
-                <label class="toggle-switch">
-                    <input type="checkbox" 
+                <label class="toggle-switch" @if($isAutoControlled) title="Dikendalikan otomatis (Smart Watering / Jadwal)" @endif>
+                    <input type="checkbox"
                            class="control-toggle"
                            data-device="{{ $device }}"
-                           @checked($manualControls[$device] ?? false)>
-                    <span class="toggle-slider"></span>
+                           @checked($toggleChecked)
+                           @disabled($isAutoControlled)
+                           style="{{ $isAutoControlled ? 'cursor:not-allowed; opacity:0.6;' : '' }}">
+                    <span class="toggle-slider" style="{{ $isAutoControlled ? 'cursor:not-allowed; opacity:0.6;' : '' }}"></span>
                 </label>
             </div>
         @endforeach
     </div>
+
 </section>
 
 <script>
@@ -125,10 +137,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     const isActive = Number(data.controls[device]) === 1;
                     const isManual = Number(data.manual_controls[device]) === 1;
                     const isLamp = device.startsWith('lampu');
-                    
+                    const isSmartWatering = !!(data.pump?.smart_watering_active);
+                    const isPumpAutomatic = !!(data.pump?.automatic_active);
+
                     if (toggle) {
-                        toggle.checked = isManual;
+                        if (device === 'pompa') {
+                            // Pompa toggle: tampilkan status efektif (aktif oleh apapun)
+                            toggle.checked = isActive;
+                            const isAutoControlled = (isSmartWatering || isPumpAutomatic) && !isManual;
+                            toggle.disabled = isAutoControlled;
+                            toggle.style.opacity = isAutoControlled ? '0.6' : '1';
+                            toggle.style.cursor  = isAutoControlled ? 'not-allowed' : 'pointer';
+                        } else {
+                            toggle.checked = isManual;
+                            toggle.disabled = false;
+                            toggle.style.opacity = '1';
+                            toggle.style.cursor  = 'pointer';
+                        }
                     }
+
                     
                     if (label) {
                         if (isActive) {

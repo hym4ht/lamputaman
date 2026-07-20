@@ -1,66 +1,77 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
-#include "DHT.h"
+#include <Wire.h>
+#include <Adafruit_AHTX0.h>
+#include <Adafruit_BMP280.h>
 
 // --- KONFIGURASI WIFI ---
-const char* ssid = "KASYIFA KEY";
-const char* password = "PINGINSURGAibadah";
+const char* ssid = "Makoto.wifi";
+const char* password = "harikamis";
 
 // --- KONFIGURASI API LARAVEL ---
-// Isi dengan alamat web Laravel yang bisa diakses NodeMCU.
-// Untuk server lokal, gunakan IP laptop/PC, bukan 127.0.0.1 atau localhost.
 const char* apiBaseUrl = "http://43.133.155.101:8099";
-
-// Isi jika .env Laravel memakai IOT_API_TOKEN. Kosongkan jika tidak dipakai.
 const char* iotToken = "c131e10fe1608540ee2b446a4bf9529846c883893dfdf261e288cf6124f26dfc";
 
 const char* sensorPath = "/api/iot/sensor";
 const char* controlPath = "/api/iot/control";
+const char* smartWateringReportPath = "/api/iot/smart-watering";
+
+// --- INISIALISASI SENSOR AHT20 & BMP280 ---
+Adafruit_AHTX0 aht;
+Adafruit_BMP280 bmp; 
 
 // --- KONFIGURASI PIN (NodeMCU ESP8266) ---
-#define DHTPIN D4
-#define DHTTYPE DHT22
-DHT dht(DHTPIN, DHTTYPE);
+const int relayLampu1 = D3; 
+const int relayLampu2 = D5;
+const int relayLampu3 = D6;
+const int relayPompa  = D7;
+const int ledWiFi = D4;
+const int trigPin = D0;
+const int echoPin = D8;
 
-const int relayLampu1 = D1;
-const int relayLampu2 = D2;
-const int relayLampu3 = D5;
-const int relayPompa = D6;
-
-// Kebanyakan modul relay biru adalah active low: LOW = ON, HIGH = OFF.
 const bool relayActiveLow = true;
 
 unsigned long previousMillis = 0;
 const unsigned long syncIntervalMs = 5000;
 
+// --- VARIABEL GLOBAL SENSOR ---
+float currentSuhu = 0.0;
+float currentKelembaban = 0.0;
+float currentTekanan = 0.0;
+float currentJarakAir = 0.0;
+String statusAir = "UNKNOWN"; 
+
+// --- VARIABEL SMART WATERING ---
+bool smartWateringEnabled = false;     // flag dari backend
+bool smartWateringPumpWasActive = false; // tracking perubahan state
+
+// ==========================================
+// KONFIGURASI TANDON (Berdasarkan Uji Coba)
+// ==========================================
+// Berapa jarak saat air mencapai bibir atas (penuh)
+const float JARAK_PENUH = 3.0; 
+
+// Berapa jarak saat air sudah menyentuh dasar wadah (habis)
+const float JARAK_HABIS = 9.0; 
+// ==========================================
+
 String apiUrl(const char* path) {
   String base = apiBaseUrl;
-
-  if (base.endsWith("/")) {
-    base.remove(base.length() - 1);
-  }
-
+  if (base.endsWith("/")) base.remove(base.length() - 1);
   return base + path;
 }
 
 void addApiHeaders(HTTPClient& http, bool withJsonBody) {
   http.addHeader("Accept", "application/json");
-
-  if (withJsonBody) {
-    http.addHeader("Content-Type", "application/json");
-  }
-
-  if (strlen(iotToken) > 0) {
-    http.addHeader("X-IOT-TOKEN", iotToken);
-  }
+  if (withJsonBody) http.addHeader("Content-Type", "application/json");
+  if (strlen(iotToken) > 0) http.addHeader("X-IOT-TOKEN", iotToken);
 }
 
 void writeRelay(int pin, int status) {
-  bool isOn = status == 1;
+  bool isOn = (status == 1);
   int activeLevel = relayActiveLow ? LOW : HIGH;
   int inactiveLevel = relayActiveLow ? HIGH : LOW;
-
   digitalWrite(pin, isOn ? activeLevel : inactiveLevel);
 }
 
@@ -69,62 +80,139 @@ void applyRelayState(int lampu1, int lampu2, int lampu3, int pompa) {
   writeRelay(relayLampu2, lampu2);
   writeRelay(relayLampu3, lampu3);
   writeRelay(relayPompa, pompa);
-
-  Serial.print("Relay => lampu1=");
-  Serial.print(lampu1);
-  Serial.print(" lampu2=");
-  Serial.print(lampu2);
-  Serial.print(" lampu3=");
-  Serial.print(lampu3);
-  Serial.print(" pompa=");
-  Serial.println(pompa);
 }
 
 void setAllRelaysOff() {
   applyRelayState(0, 0, 0, 0);
 }
 
+// --- FUNGSI BACA ULTRASONIK ---
+float bacaJarakAir() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  long duration = pulseIn(echoPin, HIGH, 30000); 
+  if (duration == 0) return -1; 
+  return (duration * 0.034 / 2); 
+}
+
+// --- FUNGSI INDIKATOR WIFI ---
+void wifiConnectedIndicator() {
+  for(int i = 0; i < 3; i++) {
+    digitalWrite(ledWiFi, HIGH); delay(150);
+    digitalWrite(ledWiFi, LOW); delay(150);
+  }
+  digitalWrite(ledWiFi, HIGH); 
+}
+
+void wifiDisconnectedIndicator() {
+  digitalWrite(ledWiFi, HIGH); delay(500);
+  digitalWrite(ledWiFi, LOW); delay(500);
+}
+
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+  digitalWrite(ledWiFi, LOW); 
 
   Serial.print("\nMenghubungkan ke WiFi");
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-
-  Serial.println("\nBerhasil terhubung ke WiFi!");
-  Serial.print("IP Address ESP8266: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("\nWiFi Terhubung!");
+  wifiConnectedIndicator();
 }
 
 bool ensureWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
+    digitalWrite(ledWiFi, HIGH);
     return true;
   }
-
-  Serial.println("WiFi terputus, mencoba konek ulang...");
+  wifiDisconnectedIndicator();
   WiFi.reconnect();
-  delay(1000);
-
-  return WiFi.status() == WL_CONNECTED;
+  delay(2000); 
+  if (WiFi.status() == WL_CONNECTED) {
+      wifiConnectedIndicator();
+      return true;
+  }
+  return false;
 }
 
+// --- FUNGSI PENGIRIMAN DATA SENSOR ---
 void sendSensorData() {
-  float suhu = dht.readTemperature();
-  float kelembaban = dht.readHumidity();
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
+  float suhu = temp.temperature; 
+  float kelembaban = humidity.relative_humidity;
+  float tekanan = bmp.readPressure() / 100.0F;
+  float jarak = bacaJarakAir();
 
-  StaticJsonDocument<160> requestDoc;
+  currentSuhu = suhu;
+  currentKelembaban = kelembaban;
+  currentTekanan = tekanan;
+  
+  if (jarak != -1) {
+    currentJarakAir = jarak;
+  }
 
-  if (isnan(suhu) || isnan(kelembaban)) {
-    Serial.println("Gagal membaca sensor DHT. Mengirim status error ke server...");
-    requestDoc["suhu"] = nullptr;
-    requestDoc["kelembaban"] = nullptr;
+  // --- LOGIKA PEMBAGIAN 3 ZONA AIR ---
+  // Menghitung sepertiga dan dua pertiga dari rentang jarak
+  float rentang = JARAK_HABIS - JARAK_PENUH; 
+  float batasFull = JARAK_PENUH + (rentang / 3.0);      
+  float batasSedang = JARAK_PENUH + ((rentang * 2.0) / 3.0); 
+
+  if (currentJarakAir == 0.0 && jarak == -1) {
+      statusAir = "TIDAK TERBACA";
   } else {
-    requestDoc["suhu"] = suhu;
-    requestDoc["kelembaban"] = kelembaban;
+      if (currentJarakAir > 0 && currentJarakAir <= batasFull) {
+        statusAir = "FULL";
+      } else if (currentJarakAir > batasFull && currentJarakAir <= batasSedang) {
+        statusAir = "SEDANG";
+      } else if (currentJarakAir > batasSedang) {
+        statusAir = "HABIS";
+      } else {
+        statusAir = "TIDAK TERBACA"; 
+      }
+  }
+
+  // Debug Serial Monitor
+  Serial.print("[DEBUG] Suhu: "); Serial.print(suhu);
+  Serial.print(" | Lembab: "); Serial.print(kelembaban);
+  Serial.print(" | Tekanan: "); Serial.print(tekanan);
+  Serial.print(" | Jarak: "); 
+  
+  if (jarak == -1) {
+      Serial.print("GAGAL_BACA");
+  } else {
+      Serial.print(currentJarakAir); Serial.print("cm");
+  }
+  
+  Serial.print(" -> Status: "); Serial.println(statusAir);
+
+  bool isSensorError = false;
+  if (isnan(suhu) || isnan(kelembaban)) {
+    Serial.println("❌ MASALAH: AHT20 gagal memberikan data!");
+    isSensorError = true;
+  }
+  if (isnan(tekanan) || tekanan <= 0.01) {
+    Serial.println("❌ MASALAH: BMP280 gagal memberikan data!");
+    isSensorError = true;
+  }
+  if (isSensorError) return;
+
+  // Siapkan Payload JSON
+  StaticJsonDocument<256> requestDoc;
+  requestDoc["suhu"] = currentSuhu;
+  requestDoc["kelembaban"] = currentKelembaban;
+  requestDoc["tekanan_udara"] = currentTekanan;
+  
+  if (currentJarakAir > 0) {
+    requestDoc["jarak_air"] = currentJarakAir;
+    requestDoc["status_air"] = statusAir; 
   }
 
   String requestBody;
@@ -132,63 +220,39 @@ void sendSensorData() {
 
   WiFiClient client;
   HTTPClient http;
-  String url = apiUrl(sensorPath);
-
-  if (!http.begin(client, url)) {
-    Serial.println("Gagal mulai HTTP sensor.");
-    return;
-  }
+  
+  if (!http.begin(client, apiUrl(sensorPath))) return;
 
   addApiHeaders(http, true);
-
   int statusCode = http.POST(requestBody);
-  String response = http.getString();
-
+  
   if (statusCode >= 200 && statusCode < 300) {
-    Serial.print("Sensor terkirim: suhu=");
-    Serial.print(suhu, 1);
-    Serial.print(" kelembaban=");
-    Serial.println(kelembaban, 1);
+    Serial.println("✅ Data berhasil dikirim ke server.\n");
   } else {
-    Serial.print("Gagal kirim sensor. HTTP ");
-    Serial.print(statusCode);
-    Serial.print(" => ");
-    Serial.println(response);
+    Serial.print("❌ Gagal kirim sensor. HTTP "); Serial.println(statusCode);
   }
 
   http.end();
 }
 
+// --- FUNGSI MENGAMBIL STATUS RELAY ---
 void fetchAndApplyControl() {
   WiFiClient client;
   HTTPClient http;
-  String url = apiUrl(controlPath);
-
-  if (!http.begin(client, url)) {
-    Serial.println("Gagal mulai HTTP control.");
-    return;
-  }
-
+  
+  if (!http.begin(client, apiUrl(controlPath))) return;
   addApiHeaders(http, false);
-
+  
   int statusCode = http.GET();
-  String response = http.getString();
-
   if (statusCode != 200) {
-    Serial.print("Gagal ambil kontrol. HTTP ");
-    Serial.print(statusCode);
-    Serial.print(" => ");
-    Serial.println(response);
     http.end();
     return;
   }
 
   StaticJsonDocument<256> responseDoc;
-  DeserializationError error = deserializeJson(responseDoc, response);
-
+  DeserializationError error = deserializeJson(responseDoc, http.getString());
+  
   if (error) {
-    Serial.print("Gagal membaca JSON control: ");
-    Serial.println(error.c_str());
     http.end();
     return;
   }
@@ -196,9 +260,65 @@ void fetchAndApplyControl() {
   int lampu1 = responseDoc["lampu1"] | 0;
   int lampu2 = responseDoc["lampu2"] | 0;
   int lampu3 = responseDoc["lampu3"] | 0;
-  int pompa = responseDoc["pompa"] | 0;
+  int pompa  = responseDoc["pompa"]  | 0;
+
+  // ── Baca flag Smart Watering dari backend ──
+  bool smartWateringFromServer = (responseDoc["smart_watering"] | 0) == 1;
+  
+  if (smartWateringFromServer != smartWateringEnabled) {
+    // Status berubah, log
+    Serial.print("[SmartWatering] Status berubah: ");
+    Serial.println(smartWateringFromServer ? "AKTIF" : "NONAKTIF");
+    smartWateringEnabled = smartWateringFromServer;
+  }
+
+  // ── Jika Smart Watering aktif, override pompa = ON ──
+  if (smartWateringEnabled) {
+    pompa = 1;
+    Serial.println("💧 Smart Watering aktif → Pompa dinyalakan.");
+  }
+
+  // Pompa otomatis menyala jika suhu > 30 derajat (logika sebelumnya)
+  if (currentSuhu > 30.0) {
+    pompa = 1; 
+    Serial.println("⚠ INFO: Suhu > 30°C! Pompa diset ON otomatis.");
+  }
 
   applyRelayState(lampu1, lampu2, lampu3, pompa);
+  http.end();
+
+  // ── Laporkan status pompa Smart Watering ke backend ──
+  bool pumpNowActive = (pompa == 1);
+  bool reportNeeded = (pumpNowActive != smartWateringPumpWasActive);
+  
+  if (smartWateringEnabled || reportNeeded) {
+    smartWateringPumpWasActive = pumpNowActive;
+    reportSmartWateringStatus(pumpNowActive);
+  }
+}
+
+// --- FUNGSI MELAPORKAN STATUS SMART WATERING KE BACKEND ---
+void reportSmartWateringStatus(bool isActive) {
+  WiFiClient client;
+  HTTPClient http;
+
+  if (!http.begin(client, apiUrl(smartWateringReportPath))) return;
+  addApiHeaders(http, true);
+
+  StaticJsonDocument<64> doc;
+  doc["active"] = isActive ? 1 : 0;
+
+  String body;
+  serializeJson(doc, body);
+
+  int statusCode = http.POST(body);
+  if (statusCode >= 200 && statusCode < 300) {
+    Serial.print("[SmartWatering] Laporan pompa terkirim: ");
+    Serial.println(isActive ? "AKTIF" : "MATI");
+  } else {
+    Serial.print("[SmartWatering] Gagal lapor. HTTP "); Serial.println(statusCode);
+  }
+
   http.end();
 }
 
@@ -208,25 +328,38 @@ void setup() {
   pinMode(relayLampu1, OUTPUT);
   pinMode(relayLampu2, OUTPUT);
   pinMode(relayLampu3, OUTPUT);
-  pinMode(relayPompa, OUTPUT);
+  pinMode(relayPompa,  OUTPUT);
+  pinMode(ledWiFi,     OUTPUT);
+  pinMode(trigPin,     OUTPUT);
+  pinMode(echoPin,     INPUT);
 
   setAllRelaysOff();
-  dht.begin();
+
+  Wire.begin();
+  
+  if (!aht.begin()) {
+    Serial.println("Gagal menemukan modul AHT20!");
+  }
+  
+  if (!bmp.begin(0x77)) {
+    Serial.println("Gagal menemukan modul BMP280!");
+  } else {
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     
+                    Adafruit_BMP280::SAMPLING_X2,     
+                    Adafruit_BMP280::SAMPLING_X16,    
+                    Adafruit_BMP280::FILTER_X16,      
+                    Adafruit_BMP280::STANDBY_MS_500); 
+  }
+  
   connectWiFi();
 }
 
 void loop() {
   unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis < syncIntervalMs) {
-    return;
-  }
-
+  if (currentMillis - previousMillis < syncIntervalMs) return;
   previousMillis = currentMillis;
 
-  if (!ensureWiFi()) {
-    return;
-  }
+  if (!ensureWiFi()) return; 
 
   sendSensorData();
   fetchAndApplyControl();

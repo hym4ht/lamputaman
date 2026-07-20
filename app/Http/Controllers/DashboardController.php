@@ -369,6 +369,14 @@ class DashboardController extends Controller
             ->orderBy('id')
             ->get(['id', 'suhu', 'kelembaban', 'created_at']);
 
+        if ($readings->isEmpty()) {
+            $readings = SensorData::query()
+                ->latest('created_at')
+                ->limit(20)
+                ->get(['id', 'suhu', 'kelembaban', 'created_at'])
+                ->sortBy('created_at');
+        }
+
         return $this->sampleSensorReadings($readings)
             ->values()
             ->map(fn (SensorData $reading): array => [
@@ -502,8 +510,7 @@ class DashboardController extends Controller
         $deviceConnected = false;
 
         if ($lastSeenCarbon) {
-            $diff = abs(now()->diffInSeconds($lastSeenCarbon));
-            $deviceConnected = ($diff <= $timeout);
+            $deviceConnected = $lastSeenCarbon->gte(now()->subSeconds($timeout));
         }
 
         return [

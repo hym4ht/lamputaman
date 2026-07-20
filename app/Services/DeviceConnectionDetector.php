@@ -36,7 +36,7 @@ class DeviceConnectionDetector
         $isCurrentlyConnected = false;
 
         if ($lastSeenCarbon) {
-            $isCurrentlyConnected = abs(now()->diffInSeconds($lastSeenCarbon)) <= $timeout;
+            $isCurrentlyConnected = $lastSeenCarbon->gte(now()->subSeconds($timeout));
         }
 
         $lastConnectionStatus = Cache::get('device_connection_status_last');
@@ -47,36 +47,40 @@ class DeviceConnectionDetector
             return;
         }
 
-        $firebase = app(FirebaseService::class);
-        if (! $firebase->isConfigured()) {
-            return;
-        }
+        try {
+            $firebase = app(FirebaseService::class);
+            if (! $firebase->isConfigured()) {
+                return;
+            }
 
-        if ($lastConnectionStatus === 'connected' && ! $isCurrentlyConnected) {
-            // Transition: Connected -> Disconnected
-            $lastSeenLabel = $lastSeenCarbon
-                ? $lastSeenCarbon->timezone(config('app.timezone', 'Asia/Jakarta'))->format('H:i:s')
-                : 'Tidak diketahui';
+            if ($lastConnectionStatus === 'connected' && ! $isCurrentlyConnected) {
+                // Transition: Connected -> Disconnected
+                $lastSeenLabel = $lastSeenCarbon
+                    ? $lastSeenCarbon->timezone(config('app.timezone', 'Asia/Jakarta'))->format('H:i:s')
+                    : 'Tidak diketahui';
 
-            $title = '⚠️ Koneksi Alat Terputus';
-            $body = "Alat NodeMCU tidak lagi terhubung ke server. Terakhir aktif: {$lastSeenLabel}.";
+                $title = '⚠️ Koneksi Alat Terputus';
+                $body = "Alat NodeMCU tidak lagi terhubung ke server. Terakhir aktif: {$lastSeenLabel}.";
 
-            $firebase->broadcast($title, $body, [
-                'event' => 'device_disconnected',
-                'last_seen' => $lastSeenLabel,
-            ]);
+                $firebase->broadcast($title, $body, [
+                    'event' => 'device_disconnected',
+                    'last_seen' => $lastSeenLabel,
+                ]);
 
-            Cache::put('device_connection_status_last', 'disconnected', 86400);
-        } elseif ($lastConnectionStatus === 'disconnected' && $isCurrentlyConnected) {
-            // Transition: Disconnected -> Connected
-            $title = '✅ Koneksi Alat Terhubung';
-            $body = 'Alat NodeMCU telah terhubung kembali ke server.';
+                Cache::put('device_connection_status_last', 'disconnected', 86400);
+            } elseif ($lastConnectionStatus === 'disconnected' && $isCurrentlyConnected) {
+                // Transition: Disconnected -> Connected
+                $title = '✅ Koneksi Alat Terhubung';
+                $body = 'Alat NodeMCU telah terhubung kembali ke server.';
 
-            $firebase->broadcast($title, $body, [
-                'event' => 'device_connected',
-            ]);
+                $firebase->broadcast($title, $body, [
+                    'event' => 'device_connected',
+                ]);
 
-            Cache::put('device_connection_status_last', 'connected', 86400);
+                Cache::put('device_connection_status_last', 'connected', 86400);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('DeviceConnectionDetector FCM Broadcast Exception: '.$e->getMessage());
         }
     }
 }

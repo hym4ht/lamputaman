@@ -198,48 +198,52 @@ class IotController extends Controller
 
     private function checkSensorThresholdsAndNotify(float $suhu, float $kelembaban): void
     {
-        $firebase = app(\App\Services\FirebaseService::class);
-        if (!$firebase->isConfigured()) {
-            return;
-        }
-
-        $tempHotLimit = (float) env('SENSOR_TEMP_HOT', 35.0);
-        $humidityLowLimit = (float) env('SENSOR_HUMIDITY_LOW', 45.0);
-        $humidityHighLimit = (float) env('SENSOR_HUMIDITY_HIGH', 85.0);
-
-        // 1. Check Temperature
-        if ($suhu >= $tempHotLimit) {
-            $cacheKey = 'fcm_notify_temp_hot';
-            if (!Cache::has($cacheKey)) {
-                $firebase->broadcast(
-                    "⚠️ Suhu Taman Terlalu Panas",
-                    "Peringatan: Suhu saat ini mencapai {$suhu}°C (melebihi batas aman {$tempHotLimit}°C)."
-                );
-                Cache::put($cacheKey, true, 3600); // Throttle 1 hour
+        try {
+            $firebase = app(\App\Services\FirebaseService::class);
+            if (!$firebase->isConfigured()) {
+                return;
             }
-        }
 
-        // 2. Check Humidity Low
-        if ($kelembaban <= $humidityLowLimit) {
-            $cacheKey = 'fcm_notify_humidity_low';
-            if (!Cache::has($cacheKey)) {
-                $firebase->broadcast(
-                    "⚠️ Kelembaban Taman Terlalu Rendah",
-                    "Peringatan: Kelembaban saat ini {$kelembaban}% (di bawah batas aman {$humidityLowLimit}%). Tanaman membutuhkan penyiraman."
-                );
-                Cache::put($cacheKey, true, 3600);
+            $tempHotLimit = (float) env('SENSOR_TEMP_HOT', 35.0);
+            $humidityLowLimit = (float) env('SENSOR_HUMIDITY_LOW', 45.0);
+            $humidityHighLimit = (float) env('SENSOR_HUMIDITY_HIGH', 85.0);
+
+            // 1. Check Temperature
+            if ($suhu >= $tempHotLimit) {
+                $cacheKey = 'fcm_notify_temp_hot';
+                if (!Cache::has($cacheKey)) {
+                    $firebase->broadcast(
+                        "⚠️ Suhu Taman Terlalu Panas",
+                        "Peringatan: Suhu saat ini mencapai {$suhu}°C (melebihi batas aman {$tempHotLimit}°C)."
+                    );
+                    Cache::put($cacheKey, true, 3600); // Throttle 1 hour
+                }
             }
-        }
-        // 3. Check Humidity High
-        elseif ($kelembaban >= $humidityHighLimit) {
-            $cacheKey = 'fcm_notify_humidity_high';
-            if (!Cache::has($cacheKey)) {
-                $firebase->broadcast(
-                    "⚠️ Kelembaban Taman Terlalu Tinggi",
-                    "Peringatan: Kelembaban saat ini {$kelembaban}% (melebihi batas {$humidityHighLimit}%)."
-                );
-                Cache::put($cacheKey, true, 3600);
+
+            // 2. Check Humidity Low
+            if ($kelembaban <= $humidityLowLimit) {
+                $cacheKey = 'fcm_notify_humidity_low';
+                if (!Cache::has($cacheKey)) {
+                    $firebase->broadcast(
+                        "⚠️ Kelembaban Taman Terlalu Rendah",
+                        "Peringatan: Kelembaban saat ini {$kelembaban}% (di bawah batas aman {$humidityLowLimit}%). Tanaman membutuhkan penyiraman."
+                    );
+                    Cache::put($cacheKey, true, 3600);
+                }
             }
+            // 3. Check Humidity High
+            elseif ($kelembaban >= $humidityHighLimit) {
+                $cacheKey = 'fcm_notify_humidity_high';
+                if (!Cache::has($cacheKey)) {
+                    $firebase->broadcast(
+                        "⚠️ Kelembaban Taman Terlalu Tinggi",
+                        "Peringatan: Kelembaban saat ini {$kelembaban}% (melebihi batas {$humidityHighLimit}%)."
+                    );
+                    Cache::put($cacheKey, true, 3600);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('FCM Threshold Notification Exception: ' . $e->getMessage());
         }
     }
 
@@ -257,18 +261,22 @@ class IotController extends Controller
 
     private function notifySensorBroken(): void
     {
-        $firebase = app(\App\Services\FirebaseService::class);
-        if (!$firebase->isConfigured()) {
-            return;
-        }
+        try {
+            $firebase = app(\App\Services\FirebaseService::class);
+            if (!$firebase->isConfigured()) {
+                return;
+            }
 
-        $cacheKey = 'fcm_notify_sensor_broken';
-        if (!Cache::has($cacheKey)) {
-            $firebase->broadcast(
-                "⚠️ Peringatan: Sensor DHT Rusak / Terputus",
-                "Sistem mendeteksi bahwa sensor suhu dan kelembaban (DHT) pada alat NodeMCU mengalami kegagalan pembacaan atau terputus."
-            );
-            Cache::put($cacheKey, true, 3600); // Throttle 1 hour
+            $cacheKey = 'fcm_notify_sensor_broken';
+            if (!Cache::has($cacheKey)) {
+                $firebase->broadcast(
+                    "⚠️ Peringatan: Sensor DHT Rusak / Terputus",
+                    "Sistem mendeteksi bahwa sensor suhu dan kelembaban (DHT) pada alat NodeMCU mengalami kegagalan pembacaan atau terputus."
+                );
+                Cache::put($cacheKey, true, 3600); // Throttle 1 hour
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('FCM Sensor Broken Notification Exception: ' . $e->getMessage());
         }
     }
 }

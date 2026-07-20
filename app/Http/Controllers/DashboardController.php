@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -471,33 +472,47 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get device connection status based on the latest SENSOR DATA timestamp in DB.
-     * If the most recent sensor record is older than the timeout threshold → TERPUTUS.
-     * This is intentionally DB-based (not cache) so stale cache never reports false-positive.
+     * Get device connection status based on the latest activity timestamp (DB or Cache).
+     * If the most recent activity is older than the timeout threshold → TERPUTUS.
      *
      * @return array{device_connected: bool, device_last_seen: ?string, last_seen_object: ?\Illuminate\Support\Carbon}
      */
     private function deviceConnectionStatus(?SensorData $latest = null): array
     {
-        // Always use the latest sensor record timestamp as the source of truth.
-        // If the IoT hasn't sent sensor data in the last N seconds → it's disconnected.
         $latest = $latest ?: SensorData::query()->latest('created_at')->first();
+        $cacheLastSeen = Cache::get('device_last_seen');
 
-        $lastSeenCarbon = $latest?->created_at;
+        $lastSeenCarbon = null;
+        if ($cacheLastSeen) {
+            try {
+                $parsed = \Illuminate\Support\Carbon::parse($cacheLastSeen);
+                $lastSeenCarbon = $parsed;
+            } catch (\Throwable $e) {
+                $lastSeenCarbon = null;
+            }
+        }
+
+        if ($latest?->created_at) {
+            if (! $lastSeenCarbon || $latest->created_at->greaterThan($lastSeenCarbon)) {
+                $lastSeenCarbon = $latest->created_at;
+            }
+        }
+
+        $timeout = (int) config('firebase.device_connection_timeout', 10);
         $deviceConnected = false;
 
         if ($lastSeenCarbon) {
-            $diff = now()->timestamp - $lastSeenCarbon->timestamp;
-            $timeout = config('firebase.device_connection_timeout', 10);
-            $deviceConnected = ($diff >= 0 && $diff <= $timeout);
+            $diff = abs(now()->diffInSeconds($lastSeenCarbon));
+            $deviceConnected = ($diff <= $timeout);
         }
 
         return [
             'device_connected' => $deviceConnected,
             'device_last_seen' => $lastSeenCarbon
-                ? $lastSeenCarbon->timezone(config('app.timezone'))->format('H:i:s')
+                ? $lastSeenCarbon->timezone(config('app.timezone', 'Asia/Jakarta'))->format('H:i:s')
                 : null,
             'last_seen_object' => $lastSeenCarbon,
         ];
     }
 }
+

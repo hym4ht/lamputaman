@@ -2,22 +2,41 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Cache;
+use App\Models\SensorData;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class DeviceConnectionDetector
 {
     public static function check(): void
     {
-        $lastSeen = Cache::get('device_last_seen');
-        if ($lastSeen instanceof \__PHP_Incomplete_Class) {
-            $lastSeen = null;
+        $cacheLastSeen = Cache::get('device_last_seen');
+        if ($cacheLastSeen instanceof \__PHP_Incomplete_Class) {
+            $cacheLastSeen = null;
         }
+
+        $latestSensor = SensorData::query()->latest('created_at')->first();
+
+        $lastSeenCarbon = null;
+        if ($cacheLastSeen) {
+            try {
+                $lastSeenCarbon = Carbon::parse($cacheLastSeen);
+            } catch (\Throwable $e) {
+                $lastSeenCarbon = null;
+            }
+        }
+
+        if ($latestSensor?->created_at) {
+            if (! $lastSeenCarbon || $latestSensor->created_at->greaterThan($lastSeenCarbon)) {
+                $lastSeenCarbon = $latestSensor->created_at;
+            }
+        }
+
+        $timeout = (int) config('firebase.device_connection_timeout', 10);
         $isCurrentlyConnected = false;
 
-        if ($lastSeen) {
-            // If seen within the timeout limit, we consider it connected
-            $isCurrentlyConnected = Carbon::parse($lastSeen)->diffInSeconds(now()) < config('firebase.device_connection_timeout', 10);
+        if ($lastSeenCarbon) {
+            $isCurrentlyConnected = abs(now()->diffInSeconds($lastSeenCarbon)) <= $timeout;
         }
 
         $lastConnectionStatus = Cache::get('device_connection_status_last');
@@ -29,17 +48,17 @@ class DeviceConnectionDetector
         }
 
         $firebase = app(FirebaseService::class);
-        if (!$firebase->isConfigured()) {
+        if (! $firebase->isConfigured()) {
             return;
         }
 
-        if ($lastConnectionStatus === 'connected' && !$isCurrentlyConnected) {
+        if ($lastConnectionStatus === 'connected' && ! $isCurrentlyConnected) {
             // Transition: Connected -> Disconnected
-            $lastSeenLabel = $lastSeen 
-                ? Carbon::parse($lastSeen)->timezone(config('app.timezone', 'Asia/Jakarta'))->format('H:i:s') 
+            $lastSeenLabel = $lastSeenCarbon
+                ? $lastSeenCarbon->timezone(config('app.timezone', 'Asia/Jakarta'))->format('H:i:s')
                 : 'Tidak diketahui';
 
-            $title = "⚠️ Koneksi Alat Terputus";
+            $title = '⚠️ Koneksi Alat Terputus';
             $body = "Alat NodeMCU tidak lagi terhubung ke server. Terakhir aktif: {$lastSeenLabel}.";
 
             $firebase->broadcast($title, $body, [
@@ -50,8 +69,8 @@ class DeviceConnectionDetector
             Cache::put('device_connection_status_last', 'disconnected', 86400);
         } elseif ($lastConnectionStatus === 'disconnected' && $isCurrentlyConnected) {
             // Transition: Disconnected -> Connected
-            $title = "✅ Koneksi Alat Terhubung";
-            $body = "Alat NodeMCU telah terhubung kembali ke server.";
+            $title = '✅ Koneksi Alat Terhubung';
+            $body = 'Alat NodeMCU telah terhubung kembali ke server.';
 
             $firebase->broadcast($title, $body, [
                 'event' => 'device_connected',
@@ -61,3 +80,4 @@ class DeviceConnectionDetector
         }
     }
 }
+

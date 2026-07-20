@@ -925,10 +925,12 @@ input:checked+.toggle-slider:before {
         transform: translateX(0);
     }
 
-    .sidebar-backdrop.open {
+    .sidebar-backdrop.open,
+    .sidebar-backdrop.visible {
         display: block;
         background: rgba(0, 0, 0, 0.4);
     }
+
 
     .main-content {
         margin-left: 0;

@@ -434,8 +434,8 @@ if (dashboardPage) {
 
     syncSensorRangeControls();
     loadDashboard();
-    window.setInterval(loadDashboard, 5000);
 }
+
 
 document.querySelectorAll('.schedule-days-group').forEach((group) => {
     const everyDayToggle = group.querySelector('.every-day-toggle');

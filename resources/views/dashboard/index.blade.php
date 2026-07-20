@@ -167,11 +167,11 @@
             if (open) {
                 dashboardPage?.classList.add('sidebar-open');
                 sidebar?.classList.add('open');
-                sidebarBackdrop?.classList.add('visible');
+                sidebarBackdrop?.classList.add('visible', 'open');
             } else {
                 dashboardPage?.classList.remove('sidebar-open');
                 sidebar?.classList.remove('open');
-                sidebarBackdrop?.classList.remove('visible');
+                sidebarBackdrop?.classList.remove('visible', 'open');
             }
         };
 
@@ -179,10 +179,15 @@
             setMobileOpen(!sidebar?.classList.contains('open'));
         });
 
+        document.getElementById('sidebarCloseBtn')?.addEventListener('click', () => {
+            setMobileOpen(false);
+        });
+
         sidebarBackdrop?.addEventListener('click', () => {
             setMobileOpen(false);
         });
     });
+
     </script>
 </body>
 <x-footer />

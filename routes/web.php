@@ -33,7 +33,7 @@ Route::middleware('auth')->group(function (): void {
     // Jalur manipulasi/kontrol alat & jadwal (Tetap aman di dalam auth)
     Route::patch('/dashboard/control/{device}', [DashboardController::class, 'updateControl'])->name('dashboard.control.update');
     Route::patch('/dashboard/control-lamps', [DashboardController::class, 'updateLampControls'])->name('dashboard.control.lamps.update');
-    Route::post('/dashboard/smart-watering', [DashboardController::class, 'toggleSmartWatering'])->name('dashboard.smart-watering.toggle');
+
     Route::post('/dashboard/pump-schedules', [DashboardController::class, 'storePumpSchedule'])->name('dashboard.pump-schedules.store');
     Route::patch('/dashboard/pump-schedules/{pumpSchedule}', [DashboardController::class, 'togglePumpSchedule'])->name('dashboard.pump-schedules.toggle');
     Route::delete('/dashboard/pump-schedules/{pumpSchedule}', [DashboardController::class, 'destroyPumpSchedule'])->name('dashboard.pump-schedules.destroy');

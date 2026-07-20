@@ -42,9 +42,11 @@ float currentTekanan = 0.0;
 float currentJarakAir = 0.0;
 String statusAir = "UNKNOWN"; 
 
-// --- VARIABEL SMART WATERING ---
-bool smartWateringEnabled = false;     // flag dari backend
-bool smartWateringPumpWasActive = false; // tracking perubahan state
+// --- SMART WATERING (logika di IoT, berdasarkan sensor) ---
+// Pompa otomatis nyala jika suhu melebihi threshold ATAU kelembaban di bawah threshold
+const float SW_SUHU_THRESHOLD    = 30.0;  // derajat Celsius
+const float SW_LEMBAB_THRESHOLD  = 70.0;  // persen (%)
+bool smartWateringActive = false;          // status saat ini
 
 // ==========================================
 // KONFIGURASI TANDON (Berdasarkan Uji Coba)
@@ -235,7 +237,53 @@ void sendSensorData() {
   http.end();
 }
 
-// --- FUNGSI MENGAMBIL STATUS RELAY ---
+// --- CEK KONDISI SMART WATERING & LAPOR KE BACKEND ---
+// Dipanggil setiap loop setelah data sensor diperbarui.
+// Jika kondisi sensor memenuhi → pompa relay langsung ON + POST ke backend.
+// Saat kondisi normal kembali → pompa relay OFF + POST ke backend.
+void checkSmartWatering() {
+  // Abaikan jika data sensor belum valid
+  if (currentSuhu <= 0.0 && currentKelembaban <= 0.0) return;
+
+  bool kondisiPerluSiram = (currentSuhu > SW_SUHU_THRESHOLD) ||
+                           (currentKelembaban > 0.0 && currentKelembaban < SW_LEMBAB_THRESHOLD);
+
+  if (kondisiPerluSiram == smartWateringActive) return; // Tidak ada perubahan, skip
+
+  smartWateringActive = kondisiPerluSiram;
+
+  if (smartWateringActive) {
+    Serial.println("[SmartWatering] Kondisi perlu siram! Pompa ON.");
+    if (currentSuhu > SW_SUHU_THRESHOLD)
+      Serial.print("  -> Suhu: "); Serial.println(currentSuhu);
+    if (currentKelembaban < SW_LEMBAB_THRESHOLD)
+      Serial.print("  -> Kelembaban: "); Serial.println(currentKelembaban);
+  } else {
+    Serial.println("[SmartWatering] Kondisi normal. Pompa OFF.");
+  }
+
+  // Kirim laporan ke backend agar toggle pompa terupdate di dashboard
+  WiFiClient client;
+  HTTPClient http;
+  if (!http.begin(client, apiUrl(smartWateringReportPath))) return;
+  addApiHeaders(http, true);
+
+  StaticJsonDocument<64> doc;
+  doc["pump"] = smartWateringActive ? 1 : 0;
+  String body;
+  serializeJson(doc, body);
+
+  int code = http.POST(body);
+  if (code >= 200 && code < 300) {
+    Serial.print("[SmartWatering] Laporan terkirim, pompa=");
+    Serial.println(smartWateringActive ? "ON" : "OFF");
+  } else {
+    Serial.print("[SmartWatering] Gagal POST. HTTP "); Serial.println(code);
+  }
+  http.end();
+}
+
+// --- FUNGSI MENGAMBIL STATUS RELAY DARI BACKEND ---
 void fetchAndApplyControl() {
   WiFiClient client;
   HTTPClient http;
@@ -251,7 +299,6 @@ void fetchAndApplyControl() {
 
   StaticJsonDocument<256> responseDoc;
   DeserializationError error = deserializeJson(responseDoc, http.getString());
-  
   if (error) {
     http.end();
     return;
@@ -262,63 +309,13 @@ void fetchAndApplyControl() {
   int lampu3 = responseDoc["lampu3"] | 0;
   int pompa  = responseDoc["pompa"]  | 0;
 
-  // ── Baca flag Smart Watering dari backend ──
-  bool smartWateringFromServer = (responseDoc["smart_watering"] | 0) == 1;
-  
-  if (smartWateringFromServer != smartWateringEnabled) {
-    // Status berubah, log
-    Serial.print("[SmartWatering] Status berubah: ");
-    Serial.println(smartWateringFromServer ? "AKTIF" : "NONAKTIF");
-    smartWateringEnabled = smartWateringFromServer;
-  }
-
-  // ── Jika Smart Watering aktif, override pompa = ON ──
-  if (smartWateringEnabled) {
+  // Jika Smart Watering sedang aktif secara lokal, pastikan pompa ON
+  // (backend akan reflect ini lewat toggle pompa, tapi ini backup lokal)
+  if (smartWateringActive) {
     pompa = 1;
-    Serial.println("💧 Smart Watering aktif → Pompa dinyalakan.");
-  }
-
-  // Pompa otomatis menyala jika suhu > 30 derajat (logika sebelumnya)
-  if (currentSuhu > 30.0) {
-    pompa = 1; 
-    Serial.println("⚠ INFO: Suhu > 30°C! Pompa diset ON otomatis.");
   }
 
   applyRelayState(lampu1, lampu2, lampu3, pompa);
-  http.end();
-
-  // ── Laporkan status pompa Smart Watering ke backend ──
-  bool pumpNowActive = (pompa == 1);
-  bool reportNeeded = (pumpNowActive != smartWateringPumpWasActive);
-  
-  if (smartWateringEnabled || reportNeeded) {
-    smartWateringPumpWasActive = pumpNowActive;
-    reportSmartWateringStatus(pumpNowActive);
-  }
-}
-
-// --- FUNGSI MELAPORKAN STATUS SMART WATERING KE BACKEND ---
-void reportSmartWateringStatus(bool isActive) {
-  WiFiClient client;
-  HTTPClient http;
-
-  if (!http.begin(client, apiUrl(smartWateringReportPath))) return;
-  addApiHeaders(http, true);
-
-  StaticJsonDocument<64> doc;
-  doc["active"] = isActive ? 1 : 0;
-
-  String body;
-  serializeJson(doc, body);
-
-  int statusCode = http.POST(body);
-  if (statusCode >= 200 && statusCode < 300) {
-    Serial.print("[SmartWatering] Laporan pompa terkirim: ");
-    Serial.println(isActive ? "AKTIF" : "MATI");
-  } else {
-    Serial.print("[SmartWatering] Gagal lapor. HTTP "); Serial.println(statusCode);
-  }
-
   http.end();
 }
 
@@ -359,8 +356,9 @@ void loop() {
   if (currentMillis - previousMillis < syncIntervalMs) return;
   previousMillis = currentMillis;
 
-  if (!ensureWiFi()) return; 
+  if (!ensureWiFi()) return;
 
-  sendSensorData();
-  fetchAndApplyControl();
+  sendSensorData();         // Kirim data sensor ke backend + update currentSuhu/currentKelembaban
+  checkSmartWatering();     // Cek kondisi sensor, nyalakan/matikan pompa + lapor ke backend
+  fetchAndApplyControl();   // Ambil perintah relay dari backend, terapkan ke hardware
 }

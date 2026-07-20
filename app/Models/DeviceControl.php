@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+
 
 class DeviceControl extends Model
 {
@@ -80,6 +82,11 @@ class DeviceControl extends Model
         }
 
         if (PumpSchedule::activeAt($at)) {
+            $snapshot['pompa'] = 1;
+        }
+
+        // Smart Watering: IoT POST ke /api/iot/smart-watering saat kondisi sensor memicu siram
+        if (Cache::get('smart_watering_active', false)) {
             $snapshot['pompa'] = 1;
         }
 

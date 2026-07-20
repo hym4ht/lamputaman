@@ -166,8 +166,6 @@ class DashboardController extends Controller
             'updated_at' => now()->toIso8601String(),
             'device_connected' => $connection['device_connected'],
             'device_last_seen' => $connection['device_last_seen'],
-            'smart_watering' => (bool) \Illuminate\Support\Facades\Cache::get('smart_watering_enabled', false),
-            'smart_watering_pump_active' => (bool) \Illuminate\Support\Facades\Cache::get('smart_watering_pump_active', false),
         ]);
     }
 
@@ -230,31 +228,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Toggle Smart Watering on/off from web dashboard.
-     * Stores the flag in cache so the IoT device picks it up via /api/iot/control or /api/iot/smart-watering.
-     */
-    public function toggleSmartWatering(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'enabled' => ['required', 'boolean'],
-        ]);
-
-        $enabled = (bool) $validated['enabled'];
-
-        // Store indefinitely until explicitly toggled off (30 days max)
-        \Illuminate\Support\Facades\Cache::put('smart_watering_enabled', $enabled, 86400 * 30);
-
-        // If turning off, also clear the pump active flag
-        if (! $enabled) {
-            \Illuminate\Support\Facades\Cache::forget('smart_watering_pump_active');
-        }
-
-        return response()->json([
-            'smart_watering' => $enabled,
-            'message' => $enabled ? 'Smart Watering diaktifkan. IoT akan menyalakan pompa.' : 'Smart Watering dinonaktifkan.',
-        ]);
-    }
 
     public function storePumpSchedule(Request $request): RedirectResponse
     {
@@ -432,14 +405,25 @@ class DashboardController extends Controller
         $manualControls = DeviceControl::manualSnapshot();
         $resolvedControls = DeviceControl::snapshot();
         $scheduleStatus = PumpSchedule::status();
+        $smartWateringActive = (bool) \Illuminate\Support\Facades\Cache::get('smart_watering_active', false);
+
+        // Determine source label
+        if ($manualControls['pompa'] ?? false) {
+            $source = 'Manual';
+        } elseif ($scheduleStatus['automatic_active']) {
+            $source = 'Otomatis';
+        } elseif ($smartWateringActive) {
+            $source = 'Smart Watering';
+        } else {
+            $source = 'OFF';
+        }
 
         return [
             ...$scheduleStatus,
             'manual_active' => (bool) ($manualControls['pompa'] ?? false),
             'effective_active' => (bool) ($resolvedControls['pompa'] ?? false),
-            'source' => ($manualControls['pompa'] ?? false)
-                ? 'Manual'
-                : ($scheduleStatus['automatic_active'] ? 'Otomatis' : 'OFF'),
+            'smart_watering_active' => $smartWateringActive,
+            'source' => $source,
         ];
     }
 
@@ -474,34 +458,32 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get the device connection status by checking cache ONLY.
-     * If the cache key is missing (expired >10s), device is considered disconnected.
-     * No fallback to DB — stale sensor data must not report device as connected.
+     * Get device connection status based on the latest SENSOR DATA timestamp in DB.
+     * If the most recent sensor record is older than the timeout threshold → TERPUTUS.
+     * This is intentionally DB-based (not cache) so stale cache never reports false-positive.
      *
      * @return array{device_connected: bool, device_last_seen: ?string, last_seen_object: ?\Illuminate\Support\Carbon}
      */
     private function deviceConnectionStatus(?SensorData $latest = null): array
     {
-        // Only trust the cache (set by authorizeDevice on each IoT heartbeat).
-        // The cache TTL is 10 seconds, so if it's gone, the device is disconnected.
-        $lastSeen = \Illuminate\Support\Facades\Cache::get('device_last_seen');
-        if ($lastSeen instanceof \__PHP_Incomplete_Class) {
-            $lastSeen = null;
-        }
+        // Always use the latest sensor record timestamp as the source of truth.
+        // If the IoT hasn't sent sensor data in the last N seconds → it's disconnected.
+        $latest = $latest ?: SensorData::query()->latest('created_at')->first();
 
-        $lastSeenCarbon = null;
+        $lastSeenCarbon = $latest?->created_at;
         $deviceConnected = false;
 
-        if ($lastSeen) {
-            $lastSeenCarbon = \Illuminate\Support\Carbon::parse($lastSeen);
+        if ($lastSeenCarbon) {
             $diff = now()->timestamp - $lastSeenCarbon->timestamp;
-            $deviceConnected = ($diff >= 0 && $diff <= config('firebase.device_connection_timeout', 10));
+            $timeout = config('firebase.device_connection_timeout', 10);
+            $deviceConnected = ($diff >= 0 && $diff <= $timeout);
         }
-        // If cache is empty → device_connected stays false, last_seen stays null.
 
         return [
             'device_connected' => $deviceConnected,
-            'device_last_seen' => $lastSeenCarbon ? $lastSeenCarbon->timezone(config('app.timezone'))->format('H:i:s') : null,
+            'device_last_seen' => $lastSeenCarbon
+                ? $lastSeenCarbon->timezone(config('app.timezone'))->format('H:i:s')
+                : null,
             'last_seen_object' => $lastSeenCarbon,
         ];
     }

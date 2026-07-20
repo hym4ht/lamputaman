@@ -67,28 +67,20 @@
                     Tombol manual aktif
                 @elseif ($pumpStatus['automatic_active'])
                     Jadwal aktif: {{ $pumpStatus['active_schedule']['name'] }}
+                @elseif ($pumpStatus['smart_watering_active'] ?? false)
+                    💧 Smart Watering aktif (sensor)
                 @else
                     Menunggu jadwal/manual
                 @endif
             </p>
-
-            {{-- Smart Watering Toggle --}}
-            <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(0,0,0,0.04); border-radius: 8px;">
-                <div>
-                    <div style="font-size: 12px; font-weight: 600; color: var(--color-text);">💧 Smart Watering</div>
-                    <div id="smartWateringNote" style="font-size: 10px; color: var(--color-text-muted); margin-top: 2px;">Otomatis nyalakan pompa</div>
-                </div>
-                <label class="smart-watering-toggle" for="smartWateringToggle" style="position:relative; display:inline-block; width:42px; height:24px; cursor:pointer;">
-                    <input type="checkbox" id="smartWateringToggle" style="opacity:0;width:0;height:0;" {{ \Illuminate\Support\Facades\Cache::get('smart_watering_enabled', false) ? 'checked' : '' }}>
-
-                    <span class="sw-slider" style="
-                        position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
-                        background: #ccc; border-radius:24px; transition:.3s;
-                    "></span>
-                </label>
+            {{-- Smart Watering badge: read-only, diupdate otomatis dari IoT --}}
+            <div id="smartWateringBadgeWrap" style="margin-top: 8px; display: {{ ($pumpStatus['smart_watering_active'] ?? false) ? 'flex' : 'none' }}; align-items: center; gap: 6px; padding: 5px 10px; background: #dcfce7; border-radius: 6px;">
+                <i class="bi bi-droplet-fill" style="color: #16a34a; font-size: 12px;"></i>
+                <span id="smartWateringBadgeText" style="font-size: 11px; font-weight: 600; color: #15803d;">Smart Watering Aktif</span>
             </div>
         </div>
     </div>
+
 
     <!-- Content Grid for Chart & Device Status -->
     <div class="content-grid" style="margin-top: 24px;">
@@ -519,10 +511,15 @@
                         note = 'Tombol manual aktif';
                     } else if (data.pump.automatic_active && data.pump.active_schedule) {
                         note = `${data.pump.active_schedule.name} · ${data.pump.active_schedule.start_time} · ${data.pump.active_schedule.duration_minutes} menit`;
+                    } else if (data.pump.smart_watering_active) {
+                        note = '💧 Smart Watering aktif (sensor suhu/kelembaban)';
                     }
                     pumpNote.textContent = note;
                 }
+                // Update Smart Watering badge visibility
+                updateSmartWateringBadge(!!data.pump.smart_watering_active);
             }
+
 
             // Update devices status list (Status Perangkat list)
             if (data.controls && data.manual_controls && data.lamp) {
@@ -573,27 +570,13 @@
                 }
             }
         }
+    }
 
-        // Update Smart Watering toggle UI if data is available
-        if (typeof data !== 'undefined' && data !== null) {
-            const swToggle = document.getElementById('smartWateringToggle');
-            const swNote = document.getElementById('smartWateringNote');
-            if (swToggle && typeof data.smart_watering !== 'undefined') {
-                swToggle.checked = !!data.smart_watering;
-                updateSmartWateringSlider(!!data.smart_watering);
-            }
-            if (swNote && typeof data.smart_watering_pump_active !== 'undefined') {
-                if (data.smart_watering && data.smart_watering_pump_active) {
-                    swNote.textContent = '💧 Pompa sedang menyiram...';
-                    swNote.style.color = '#15803d';
-                } else if (data.smart_watering) {
-                    swNote.textContent = 'Menunggu perintah ke alat...';
-                    swNote.style.color = '#d97706';
-                } else {
-                    swNote.textContent = 'Otomatis nyalakan pompa';
-                    swNote.style.color = '';
-                }
-            }
+    // ── Update Smart Watering badge (read-only, IoT-driven) ───
+    function updateSmartWateringBadge(isActive) {
+        const wrap = document.getElementById('smartWateringBadgeWrap');
+        if (wrap) {
+            wrap.style.display = isActive ? 'flex' : 'none';
         }
     }
 
@@ -634,93 +617,11 @@
         });
     }
 
-    // ── Smart Watering Toggle ──────────────────────────────────
-    function updateSmartWateringSlider(isEnabled) {
-        const slider = document.querySelector('.sw-slider');
-        if (!slider) return;
-        if (isEnabled) {
-            slider.style.background = '#22c55e';
-            slider.style.boxShadow = '0 0 0 2px #bbf7d0';
-        } else {
-            slider.style.background = '#ccc';
-            slider.style.boxShadow = 'none';
-        }
-        // Knob pseudo-element via data attribute trick
-        slider.setAttribute('data-on', isEnabled ? '1' : '0');
-    }
-
-    // Add knob via ::before on sw-slider dynamically via <style>
-    (function() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .sw-slider::before {
-                content: '';
-                position: absolute;
-                height: 18px; width: 18px;
-                left: 3px; bottom: 3px;
-                background: white;
-                border-radius: 50%;
-                transition: .3s;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            }
-            .sw-slider[data-on="1"]::before {
-                transform: translateX(18px);
-            }
-        `;
-        document.head.appendChild(style);
-    })();
-
-    // Initialize slider state from checkbox
-    const swToggleInit = document.getElementById('smartWateringToggle');
-    if (swToggleInit) {
-        updateSmartWateringSlider(swToggleInit.checked);
-    }
-
-    // Handle toggle click
-    const smartWateringToggle = document.getElementById('smartWateringToggle');
-    if (smartWateringToggle) {
-        smartWateringToggle.addEventListener('change', async function() {
-            const enabled = this.checked;
-            updateSmartWateringSlider(enabled);
-
-            const swNote = document.getElementById('smartWateringNote');
-            if (swNote) {
-                swNote.textContent = enabled ? 'Mengirim perintah...' : 'Menonaktifkan...';
-                swNote.style.color = '#888';
-            }
-
-            try {
-                const res = await fetch('{{ route('dashboard.smart-watering.toggle') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({ enabled: enabled ? 1 : 0 }),
-                });
-
-                const result = await res.json();
-
-                if (swNote) {
-                    if (enabled) {
-                        swNote.textContent = 'Menunggu perintah ke alat...';
-                        swNote.style.color = '#d97706';
-                    } else {
-                        swNote.textContent = 'Otomatis nyalakan pompa';
-                        swNote.style.color = '';
-                    }
-                }
-            } catch (err) {
-                console.error('Smart Watering toggle failed:', err);
-                // Revert toggle on error
-                this.checked = !enabled;
-                updateSmartWateringSlider(!enabled);
-                if (swNote) {
-                    swNote.textContent = 'Gagal mengubah status';
-                    swNote.style.color = '#ef4444';
-                }
-            }
-        });
-    }
+    // ── Smart Watering badge update from polling ──────────────
+    // Dipanggil dari loadSensorData setelah data diterima
+    // Badge ini di-hide/show berdasarkan data.pump.smart_watering_active
+    // (IoT POST ke /api/iot/smart-watering → backend cache → snapshot → data endpoint)
+    document.addEventListener('smartWateringUpdate', function(e) {
+        updateSmartWateringBadge(e.detail.active);
+    });
     </script>

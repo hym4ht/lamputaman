@@ -61,9 +61,6 @@ class IotController extends Controller
 
         $snapshot = DeviceControl::snapshot();
 
-        // Inject smart watering flag so IoT knows to run the pump
-        $snapshot['smart_watering'] = (int) (bool) Cache::get('smart_watering_enabled', false);
-
         // Check state transitions for notifications
         $this->detectAndNotifyTransitions($snapshot);
 
@@ -71,50 +68,30 @@ class IotController extends Controller
     }
 
     /**
-     * GET /api/iot/smart-watering
-     * IoT polls this endpoint to check if smart watering is enabled from the web dashboard.
-     */
-    public function smartWateringStatus(Request $request): JsonResponse
-    {
-        $this->authorizeDevice($request);
-
-        $enabled = (bool) Cache::get('smart_watering_enabled', false);
-
-        return response()->json([
-            'smart_watering' => (int) $enabled,
-            'message' => $enabled ? 'Smart Watering aktif – pompa harus menyala.' : 'Smart Watering nonaktif.',
-        ]);
-    }
-
-    /**
      * POST /api/iot/smart-watering
-     * IoT reports that it has executed (or stopped) the smart watering pump.
-     * Body: { "active": 1|0 }
+     * IoT melaporkan kondisi sensor memerlukan/tidak memerlukan penyiraman.
+     * Body: { "pump": 1|0 }
+     * Backend akan mengupdate cache smart_watering_active yang dibaca oleh DeviceControl::snapshot()
+     * sehingga toggle pompa di dashboard terupdate otomatis.
      */
-    public function smartWateringReport(Request $request): JsonResponse
+    public function smartWatering(Request $request): JsonResponse
     {
         $this->authorizeDevice($request);
 
         $validated = $request->validate([
-            'active' => ['required', 'boolean'],
+            'pump' => ['required', 'boolean'],
         ]);
 
-        $isActive = (bool) $validated['active'];
+        $pumpOn = (bool) $validated['pump'];
 
-        // Store the reported pump state so the dashboard can display it
-        Cache::put('smart_watering_pump_active', $isActive, 300); // 5 min TTL
-
-        // If the IoT reports pump is now ON due to smart watering, reflect that in DeviceControl
-        if ($isActive) {
-            $control = DeviceControl::query()->firstOrCreate(['device_name' => 'pompa']);
-            // Only override manual if smart watering triggered it
-            // We do NOT persist to DB – just set via smart_watering_pump_active cache above.
-            // The dashboard reads the cache flag to show status.
-        }
+        // Simpan di cache (TTL 60 detik — auto-expire jika IoT berhenti lapor)
+        Cache::put('smart_watering_active', $pumpOn, 60);
 
         return response()->json([
-            'message' => $isActive ? 'Laporan pompa Smart Watering AKTIF diterima.' : 'Laporan pompa Smart Watering MATI diterima.',
-            'active' => (int) $isActive,
+            'message' => $pumpOn
+                ? 'Smart Watering: pompa ON diterima.'
+                : 'Smart Watering: pompa OFF diterima.',
+            'pump' => (int) $pumpOn,
         ]);
     }
 
